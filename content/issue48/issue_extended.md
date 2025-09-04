@@ -29,6 +29,7 @@ Have a great day!
 - **Title:** MCP Pollutes Your Context and Is Often Not Worth It
 - **URL:** https://ghuntley.com/allocations/
 - **MyTake:** Interesting deep dive on why MCP pollutes your context and is often not worth it. Matches my experience to prefer CLI tools over MCPs. Free subscription needed, unfortunately.
+- **Keyword:** link
 
 ---
 
@@ -37,6 +38,7 @@ Have a great day!
 - **Title:** Ben Evans on AI vs Historical Innovations
 - **URL:** https://www.youtube.com/watch?v=2NgdQf2GzJg&t=531s
 - **MyTake:** Ben Evans tries to put AI into perspective to historic innovations. I think he's wrong, but it's a good watch and arguments. Very clickbaity title though, not sure why it's needed.
+- **Keyword:** video
 
 ---
 
@@ -45,6 +47,7 @@ Have a great day!
 - **Title:** Python Documentary - CultRepo (formerly Honeypot)
 - **URL:** https://www.youtube.com/watch?v=GfH4QL4VqJ0
 - **MyTake:** Formerly Honeypot documentaries continue under a new name: CultRepo. Great documentaries, this time about Python.
+- **Keyword:** video
 
 ---
 
@@ -53,6 +56,7 @@ Have a great day!
 - **Title:** No Human Has Ever Watched Eels Reproduce Naturally
 - **URL:** https://www.youtube.com/watch?v=LxNq8zOEbM8
 - **MyTake:** No human could ever watch eels reproduce naturally. What a fun fact. Maybe this is AGI, when AI is able to watch eels reproduce naturally?
+- **Keyword:** video
 
 <!--PRINT_SEPARATOR-->
 

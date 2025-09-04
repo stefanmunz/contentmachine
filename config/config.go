@@ -19,11 +19,8 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{}
 
-	// Kit v4 API key is required
+	// Kit v4 API key is optional - will skip Kit integration if not provided
 	cfg.KitAPIKey = os.Getenv("KIT_API_KEY")
-	if cfg.KitAPIKey == "" {
-		return nil, fmt.Errorf("KIT_API_KEY environment variable is required")
-	}
 
 	cfg.AstroContentPath = os.Getenv("ASTRO_CONTENT_PATH")
 	if cfg.AstroContentPath == "" {
@@ -35,10 +32,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("BLOG_BASE_URL environment variable is required")
 	}
 
+	// Buffer access token is optional - will just display posts if not provided
 	cfg.BufferAccessToken = os.Getenv("BUFFER_ACCESS_TOKEN")
-	if cfg.BufferAccessToken == "" {
-		return nil, fmt.Errorf("BUFFER_ACCESS_TOKEN environment variable is required")
-	}
 
 	profileIDsStr := os.Getenv("BUFFER_PROFILE_IDS")
 	if profileIDsStr == "" {

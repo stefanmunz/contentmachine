@@ -39,6 +39,10 @@ type KitEmailTemplatesResponse struct {
 
 // GetEmailTemplates fetches available email templates from Kit v4 API
 func GetEmailTemplates(cfg *config.Config) ([]KitEmailTemplate, error) {
+	if cfg.KitAPIKey == "" {
+		return nil, fmt.Errorf("Kit API key not configured")
+	}
+
 	req, err := http.NewRequest("GET", "https://api.kit.com/v4/email_templates", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -73,6 +77,12 @@ func GetEmailTemplates(cfg *config.Config) ([]KitEmailTemplate, error) {
 
 // CreateConvertKitDraft creates a draft broadcast using Kit v4 API
 func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun bool) error {
+	// Skip if no Kit API key configured
+	if cfg.KitAPIKey == "" {
+		log.Println("INFO: Skipping Kit integration - KIT_API_KEY not configured")
+		return nil
+	}
+
 	// Generate rich HTML with inline styles
 	richHTML := formatNewsletterContentHTML(content)
 	

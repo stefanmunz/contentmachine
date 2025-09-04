@@ -37,6 +37,7 @@ func parseSingleLink(block string) (models.CuratedLink, error) {
 	titleFound := false
 	urlFound := false
 	myTakeFound := false
+	keywordFound := false
 	
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -61,6 +62,13 @@ func parseSingleLink(block string) (models.CuratedLink, error) {
 			link.MyTake = strings.TrimSpace(myTakeText)
 			myTakeFound = true
 		}
+		
+		// Parse Keyword
+		if strings.HasPrefix(line, "- **Keyword:**") {
+			keywordText := strings.TrimPrefix(line, "- **Keyword:**")
+			link.Keyword = strings.TrimSpace(keywordText)
+			keywordFound = true
+		}
 	}
 	
 	if !titleFound {
@@ -71,6 +79,11 @@ func parseSingleLink(block string) (models.CuratedLink, error) {
 	}
 	if !myTakeFound {
 		return link, fmt.Errorf("MyTake not found in link block")
+	}
+	
+	// Keyword is optional - default to "link" if not specified
+	if !keywordFound {
+		link.Keyword = "link"
 	}
 	
 	return link, nil

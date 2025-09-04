@@ -10,9 +10,10 @@ type PostMetadata struct {
 }
 
 type CuratedLink struct {
-	Title  string
-	URL    string
-	MyTake string
+	Title   string
+	URL     string
+	MyTake  string
+	Keyword string // e.g., "link", "video", etc.
 }
 
 type PrintItem struct {

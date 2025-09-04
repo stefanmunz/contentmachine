@@ -27,15 +27,16 @@ func HandleBufferScheduling(cfg *config.Config, content *models.Content, dryRun 
 	// Collect all posts to be created
 	var allPosts []BufferPost
 	
-	// Process for each profile
-	for _, profileID := range cfg.BufferProfileIDs {
+	// Only generate posts for the first profile to avoid duplicates
+	if len(cfg.BufferProfileIDs) > 0 {
+		profileID := cfg.BufferProfileIDs[0]
 		platform, exists := cfg.ProfilePlatformMap[profileID]
 		if !exists {
 			log.Printf("WARNING: Unknown platform for profile ID %s, using Twitter limits", profileID)
 			platform = models.PlatformTwitter
 		}
 		
-		// Generate posts for this platform
+		// Generate posts for just the first platform
 		platformPosts := generatePlatformPosts(content, blogURL, platform, profileID)
 		allPosts = append(allPosts, platformPosts...)
 	}
@@ -74,60 +75,32 @@ func HandleBufferScheduling(cfg *config.Config, content *models.Content, dryRun 
 
 func generatePlatformPosts(content *models.Content, blogURL string, platform models.Platform, profileID string) []BufferPost {
 	var posts []BufferPost
-	charLimit := models.GetCharLimit(platform)
 	
-	// 1. Main thought piece post(s)
-	thoughtPieceText := fmt.Sprintf("%s... Read the full article: %s?utm_source=social&utm_medium=social %s",
-		utils.TruncateText(content.ThoughtPiece, 200),
+	// 1. Main thought piece post - expanded to ~1000 characters for manual editing
+	thoughtPieceText := fmt.Sprintf("%s\n\nRead the full article: %s?utm_source=social&utm_medium=social\n\n%s",
+		utils.TruncateText(content.ThoughtPiece, 900), // Increased from 200 to 900
 		blogURL,
 		content.Metadata.SocialMediaHashtags,
 	)
 	
-	// Check if threading is needed for thought piece
-	if len(thoughtPieceText) > charLimit {
-		threadPosts := utils.CreateThreadedPosts(thoughtPieceText, charLimit, content.Metadata.SocialMediaHashtags)
-		for i, text := range threadPosts {
-			posts = append(posts, BufferPost{
-				Text:      text,
-				ProfileID: profileID,
-				Platform:  platform,
-				IsReply:   i > 0,
-			})
-		}
-	} else {
-		posts = append(posts, BufferPost{
-			Text:      thoughtPieceText,
-			ProfileID: profileID,
-			Platform:  platform,
-		})
-	}
+	// No threading - just single posts
+	posts = append(posts, BufferPost{
+		Text:      thoughtPieceText,
+		ProfileID: profileID,
+		Platform:  platform,
+	})
 	
 	// 2. Curated links posts
 	for _, link := range content.Links {
-		linkText := fmt.Sprintf(`"%s"
-
-A great read on "%s" from my weekly newsletter.
-%s
-%s`, link.MyTake, link.Title, link.URL, content.Metadata.SocialMediaHashtags)
+		// Simple format: MyTake + URL (no quotes, no hashtags, no extra text)
+		linkText := fmt.Sprintf("%s %s", link.MyTake, link.URL)
 		
-		// Check if threading is needed for this link
-		if len(linkText) > charLimit {
-			threadPosts := utils.CreateThreadedPosts(linkText, charLimit, content.Metadata.SocialMediaHashtags)
-			for i, text := range threadPosts {
-				posts = append(posts, BufferPost{
-					Text:      text,
-					ProfileID: profileID,
-					Platform:  platform,
-					IsReply:   i > 0,
-				})
-			}
-		} else {
-			posts = append(posts, BufferPost{
-				Text:      linkText,
-				ProfileID: profileID,
-				Platform:  platform,
-			})
-		}
+		// No threading - just single posts
+		posts = append(posts, BufferPost{
+			Text:      linkText,
+			ProfileID: profileID,
+			Platform:  platform,
+		})
 	}
 	
 	return posts
@@ -215,77 +188,30 @@ func displayDryRunOutput(posts []BufferPost, cfg *config.Config) {
 
 func displayManualPostingOutput(posts []BufferPost, cfg *config.Config) {
 	fmt.Println("\n" + strings.Repeat("=", 80))
-	fmt.Println("📱 SOCIAL MEDIA POSTS - COPY & PASTE TO BUFFER")
+	fmt.Println("SOCIAL MEDIA POSTS - READY FOR BUFFER")
 	fmt.Println(strings.Repeat("=", 80) + "\n")
 	
-	// Group posts by platform
-	platformPosts := make(map[models.Platform][]BufferPost)
+	linkCounter := 1
 	for _, post := range posts {
-		platformPosts[post.Platform] = append(platformPosts[post.Platform], post)
+		if strings.Contains(post.Text, "Read the full article") {
+			fmt.Printf("\n[MAIN POST - Newsletter Summary]:\n")
+		} else {
+			fmt.Printf("\n[CURATED LINK %d]:\n", linkCounter)
+			linkCounter++
+		}
+		
+		// Display the actual post content in a copy-friendly format
+		fmt.Println(strings.Repeat("-", 70))
+		fmt.Println(post.Text)
+		fmt.Println(strings.Repeat("-", 70))
 	}
 	
-	// Display posts for each platform
-	for _, platform := range []models.Platform{models.PlatformTwitter, models.PlatformLinkedIn, models.PlatformBluesky} {
-		posts, exists := platformPosts[platform]
-		if !exists || len(posts) == 0 {
-			continue
-		}
-		
-		fmt.Printf("\n%s %s POSTS %s\n", strings.Repeat("-", 30), strings.ToUpper(string(platform)), strings.Repeat("-", 30))
-		
-		isThread := false
-		threadNum := 1
-		for i, post := range posts {
-			// Detect thread starts and continuations
-			if post.IsReply {
-				if !isThread {
-					isThread = true
-					threadNum = 2
-				} else {
-					threadNum++
-				}
-				fmt.Printf("\n🔗 Thread Part %d (post as reply to previous):\n", threadNum)
-			} else {
-				if isThread {
-					// Reset thread tracking
-					isThread = false
-					threadNum = 1
-				}
-				
-				if strings.Contains(post.Text, "Read the full article") {
-					fmt.Printf("\n📌 MAIN POST (add to top of queue):\n")
-					if i+1 < len(posts) && posts[i+1].IsReply {
-						fmt.Printf("⚠️  This will be a THREAD - post the following parts as replies\n")
-					}
-				} else {
-					fmt.Printf("\n📎 Link Post %d:\n", i+1-threadNum+1)
-				}
-			}
-			
-			// Display the actual post content in a copy-friendly format
-			fmt.Println(strings.Repeat("-", 70))
-			fmt.Println(post.Text)
-			fmt.Println(strings.Repeat("-", 70))
-		}
-		
-		fmt.Printf("\n✅ Total posts for %s: %d\n", platform, len(posts))
-		
-		// Platform-specific instructions
-		switch platform {
-		case models.PlatformTwitter:
-			fmt.Println("💡 Twitter/X: Posts longer than 280 chars are split into threads")
-		case models.PlatformLinkedIn:
-			fmt.Println("💡 LinkedIn: 3000 char limit, no threading needed")
-		case models.PlatformBluesky:
-			fmt.Println("💡 Bluesky: Posts longer than 300 chars are split into threads")
-		}
-	}
+	fmt.Printf("\nTotal posts: %d\n", len(posts))
 	
 	fmt.Printf("\n%s\n", strings.Repeat("=", 80))
-	fmt.Println("📝 INSTRUCTIONS:")
+	fmt.Println("INSTRUCTIONS:")
 	fmt.Println("1. Copy each post above and paste into Buffer")
-	fmt.Println("2. For MAIN POSTS: Add to top of queue")
-	fmt.Println("3. For THREADS: Post subsequent parts as replies to the previous post")
-	fmt.Println("4. For LINK POSTS: Add to regular queue")
+	fmt.Println("2. Edit the main post to your desired length (currently ~1000 chars)")
+	fmt.Println("3. Schedule main post at top of queue, link posts in regular queue")
 	fmt.Printf("%s\n\n", strings.Repeat("=", 80))
 }

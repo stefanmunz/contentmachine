@@ -16,6 +16,7 @@ Go modules revolutionized dependency management. No more GOPATH confusion, just 
 - **Title:** Official Go Modules Reference
 - **URL:** https://go.dev/ref/mod
 - **MyTake:** Essential reading for Go developers.
+- **Keyword:** link
 
 ---
 
@@ -24,3 +25,4 @@ Go modules revolutionized dependency management. No more GOPATH confusion, just 
 - **Title:** SemVer Explained
 - **URL:** https://semver.org
 - **MyTake:** Understanding versioning is crucial.
+- **Keyword:** link

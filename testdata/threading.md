@@ -16,6 +16,7 @@ Distributed systems are inherently complex, but patterns like circuit breakers, 
 - **Title:** Martin Fowler on Circuit Breakers
 - **URL:** https://martinfowler.com/bliki/CircuitBreaker.html
 - **MyTake:** The circuit breaker pattern is fundamental to building resilient microservices. It prevents cascading failures by failing fast when a service is struggling, giving it time to recover. This article brilliantly explains both the pattern and its implementation considerations.
+- **Keyword:** link
 
 ---
 
@@ -24,3 +25,4 @@ Distributed systems are inherently complex, but patterns like circuit breakers, 
 - **Title:** Google's Dapper Paper
 - **URL:** https://research.google/pubs/pub36356/
 - **MyTake:** This seminal paper introduced distributed tracing at scale. Understanding how Google traces requests across thousands of services provides invaluable insights into debugging complex distributed systems. The concepts here directly influenced OpenTelemetry and modern observability tools.
+- **Keyword:** video
