@@ -24,32 +24,78 @@ Have a great day!
 
 <!--LINKS_SEPARATOR-->
 
-### Why MCP Often Pollutes Your Context
+### MCP Pollutes Your Context and Is Often Not Worth It
 
 - **Title:** MCP Pollutes Your Context and Is Often Not Worth It
 - **URL:** https://ghuntley.com/allocations/
 - **MyTake:** Interesting deep dive on why MCP pollutes your context and is often not worth it. Matches my experience to prefer CLI tools over MCPs. Free subscription needed, unfortunately.
+- **Keyword:** link
 
 ---
 
-### AI in Historical Perspective
+### Ben Evans on AI vs Historical Innovations
 
 - **Title:** Ben Evans on AI vs Historical Innovations
 - **URL:** https://www.youtube.com/watch?v=2NgdQf2GzJg&t=531s
 - **MyTake:** Ben Evans tries to put AI into perspective to historic innovations. I think he's wrong, but it's a good watch and arguments. Very clickbaity title though, not sure why it's needed.
+- **Keyword:** video
 
 ---
 
-### Python Documentary by CultRepo
+### Python Documentary - CultRepo
 
 - **Title:** Python Documentary - CultRepo (formerly Honeypot)
 - **URL:** https://www.youtube.com/watch?v=GfH4QL4VqJ0
 - **MyTake:** Formerly Honeypot documentaries continue under a new name: CultRepo. Great documentaries, this time about Python.
+- **Keyword:** video
 
 ---
 
-### The Mystery of Eel Reproduction
+### No Human Has Ever Watched Eels Reproduce Naturally
 
 - **Title:** No Human Has Ever Watched Eels Reproduce Naturally
 - **URL:** https://www.youtube.com/watch?v=LxNq8zOEbM8
 - **MyTake:** No human could ever watch eels reproduce naturally. What a fun fact. Maybe this is AGI, when AI is able to watch eels reproduce naturally?
+- **Keyword:** video
+
+<!--PRINT_SEPARATOR-->
+
+## What to Print This Week
+
+### Complete Retail Display System
+
+![Display System](https://embed.filekitcdn.com/e/eDK9YeMyLk65oQtXSTZztY/2QWhD5npFVfWFrieg8T436)
+
+When you sell 3D-printed snakes at your local farmer's market, of course, it shows real dedication if your entire retail display system is 3D printed.
+
+[visit model page](https://makerworld.com/en/models/1169962-complete-retail-display-system#profileId-1178069)
+
+---
+
+### Tightening Cable Clip
+
+![Cable Clip](https://embed.filekitcdn.com/e/eDK9YeMyLk65oQtXSTZztY/eUJPQts27hWHER2kTHqhcM)
+
+I like the approach of a tightening cable clip, so it adapts to your cable.
+
+[visit model page](https://makerworld.com/en/models/1191250-tightening-cable-clip-organizer-multiple-sizes#profileId-1203048)
+
+---
+
+### Mini GameBoy Keychain
+
+![GameBoy Keychain](https://embed.filekitcdn.com/e/eDK9YeMyLk65oQtXSTZztY/bTnzT78bz7ou24nkACmqAT)
+
+A mini GameBoy Keychain, complete with a swappable cartridge system for different images! I usually hate these glue-it-together approaches, still, I started printing this one.
+
+[visit model page](https://makerworld.com/en/models/1603381-mini-gameboy-keychain-swappable-photo-cartridge#profileId-1690337)
+
+<!--FOOTER_SEPARATOR-->
+
+## Hi 👋, I'm Stefan!
+
+This is my weekly newsletter about new technology hypes in general and AI in specific. Feel free to forward this mail to people who should read it. If this mail was forwarded to you, please [subscribe here](https://liquid.engineer).
+
+[https://liquid.engineer](https://liquid.engineer)
+
+Stefan Munz, www.stefanmunz.com
