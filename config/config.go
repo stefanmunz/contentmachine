@@ -7,13 +7,23 @@ import (
 	"strings"
 )
 
+type BlogConfig struct {
+	ContentPath string // Path to blog content directory
+	RepoPath    string // Path to blog repository
+	BaseURL     string // Base URL of the blog
+}
+
 type Config struct {
 	KitAPIKey           string // Kit v4 API key
-	AstroContentPath    string
-	BlogBaseURL         string
+	PersonalBlog        BlogConfig // Personal blog (stefanmunz.com)
+	OnTreeBlog          BlogConfig // OnTree blog
 	BufferAccessToken   string
 	BufferProfileIDs    []string
 	ProfilePlatformMap  map[string]models.Platform
+	// Legacy fields for backward compatibility
+	AstroContentPath    string
+	BlogBaseURL         string
+	BlogRepoPath        string
 }
 
 func Load() (*Config, error) {
@@ -22,15 +32,40 @@ func Load() (*Config, error) {
 	// Kit v4 API key is optional - will skip Kit integration if not provided
 	cfg.KitAPIKey = os.Getenv("KIT_API_KEY")
 
-	cfg.AstroContentPath = os.Getenv("ASTRO_CONTENT_PATH")
-	if cfg.AstroContentPath == "" {
-		return nil, fmt.Errorf("ASTRO_CONTENT_PATH environment variable is required")
+	// Personal blog configuration (stefanmunz.com)
+	cfg.PersonalBlog.ContentPath = os.Getenv("PERSONAL_BLOG_CONTENT_PATH")
+	if cfg.PersonalBlog.ContentPath == "" {
+		// Fall back to legacy env var
+		cfg.PersonalBlog.ContentPath = os.Getenv("ASTRO_CONTENT_PATH")
+	}
+	if cfg.PersonalBlog.ContentPath == "" {
+		return nil, fmt.Errorf("PERSONAL_BLOG_CONTENT_PATH or ASTRO_CONTENT_PATH environment variable is required")
 	}
 
-	cfg.BlogBaseURL = os.Getenv("BLOG_BASE_URL")
-	if cfg.BlogBaseURL == "" {
-		return nil, fmt.Errorf("BLOG_BASE_URL environment variable is required")
+	cfg.PersonalBlog.BaseURL = os.Getenv("PERSONAL_BLOG_BASE_URL")
+	if cfg.PersonalBlog.BaseURL == "" {
+		// Fall back to legacy env var
+		cfg.PersonalBlog.BaseURL = os.Getenv("BLOG_BASE_URL")
 	}
+	if cfg.PersonalBlog.BaseURL == "" {
+		return nil, fmt.Errorf("PERSONAL_BLOG_BASE_URL or BLOG_BASE_URL environment variable is required")
+	}
+
+	cfg.PersonalBlog.RepoPath = os.Getenv("PERSONAL_BLOG_REPO_PATH")
+	if cfg.PersonalBlog.RepoPath == "" {
+		// Fall back to legacy env var
+		cfg.PersonalBlog.RepoPath = os.Getenv("BLOG_REPO_PATH")
+	}
+
+	// OnTree blog configuration
+	cfg.OnTreeBlog.ContentPath = os.Getenv("ONTREE_BLOG_CONTENT_PATH")
+	cfg.OnTreeBlog.RepoPath = os.Getenv("ONTREE_BLOG_REPO_PATH")
+	cfg.OnTreeBlog.BaseURL = os.Getenv("ONTREE_BLOG_BASE_URL")
+
+	// Set legacy fields for backward compatibility
+	cfg.AstroContentPath = cfg.PersonalBlog.ContentPath
+	cfg.BlogBaseURL = cfg.PersonalBlog.BaseURL
+	cfg.BlogRepoPath = cfg.PersonalBlog.RepoPath
 
 	// Buffer access token is optional - will just display posts if not provided
 	cfg.BufferAccessToken = os.Getenv("BUFFER_ACCESS_TOKEN")
