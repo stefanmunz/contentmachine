@@ -34,12 +34,14 @@ export BUFFER_BLUESKY_PROFILE_ID="your-bluesky-profile-id"
 
 ```bash
 # Run in dry-run mode (recommended first)
-go run main.go --dry-run --file path/to/your-post.md
-
-# Or with the compiled binary
-./distribute --dry-run --file path/to/your-post.md
+go run main.go --file path/to/your-post.md --dry-run
 
 # Run for real (makes API calls and copies files)
+go run main.go --file path/to/your-post.md
+
+# Or build and use the compiled binary
+go build -o distribute
+./distribute --file path/to/your-post.md --dry-run
 ./distribute --file path/to/your-post.md
 ```
 

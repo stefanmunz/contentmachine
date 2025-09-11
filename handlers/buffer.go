@@ -152,7 +152,7 @@ func scheduleBufferReply(accessToken string, post BufferPost) error {
 }
 
 func displayDryRunOutput(posts []BufferPost, cfg *config.Config) {
-	fmt.Println("=== DRY RUN MODE ===\n")
+	fmt.Println("=== DRY RUN MODE ===")
 	
 	currentProfile := ""
 	postCounter := 1
