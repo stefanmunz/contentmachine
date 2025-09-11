@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 )
 
@@ -85,6 +86,9 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 
 	// Generate rich HTML with inline styles
 	richHTML := formatNewsletterContentHTML(content)
+	
+	// Upload images to both blogs if configured
+	richHTML = uploadAndReplaceImagesMultiBlogs(cfg, content, richHTML, dryRun)
 	
 	if dryRun {
 		fmt.Printf("📧 KIT (v4 API):\n")
@@ -190,6 +194,141 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 	return nil
 }
 
+// uploadAndReplaceImagesMultiBlogs uploads images to both blogs and replaces URLs
+func uploadAndReplaceImagesMultiBlogs(cfg *config.Config, content *models.Content, htmlContent string, dryRun bool) string {
+	// Upload all images (including print items) to personal blog for newsletter hosting
+	if cfg.PersonalBlog.RepoPath != "" && cfg.PersonalBlog.BaseURL != "" {
+		htmlContent = uploadImagesToSingleBlog(cfg.PersonalBlog, "Personal", content, htmlContent, dryRun, true)
+	}
+	
+	// Upload only banner images to OnTree blog (no print items needed)
+	if cfg.OnTreeBlog.RepoPath != "" && cfg.OnTreeBlog.BaseURL != "" {
+		uploadImagesToSingleBlog(cfg.OnTreeBlog, "OnTree", content, htmlContent, dryRun, false)
+	}
+	
+	return htmlContent
+}
+
+// uploadImagesToSingleBlog uploads images to a specific blog
+func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, content *models.Content, htmlContent string, dryRun bool, downloadPrintItems bool) string {
+	// Extract issue number from ContentID
+	issueNumber := strings.TrimPrefix(content.Metadata.ContentID, "issue")
+	if issueNumber == "" {
+		log.Printf("WARNING: No issue number found for %s blog, skipping image upload", blogName)
+		return htmlContent
+	}
+	
+	// Get the content directory path
+	contentDir := filepath.Dir(content.OriginalPath)
+	
+	// Create image uploader
+	uploader := NewImageUploader(blogConfig.RepoPath, blogConfig.BaseURL)
+	
+	// Only copy avatar and banner for Personal blog (stefanmunz.com)
+	if blogName == "Personal" && downloadPrintItems {
+		if !dryRun {
+			// Get the content machine root directory (parent of content directory)
+			contentMachineRoot := filepath.Dir(filepath.Dir(contentDir))
+			avatarURL, bannerURL, _ := uploader.CopyNewsletterAssets(contentMachineRoot, issueNumber)
+			
+			if avatarURL != "" || bannerURL != "" {
+				log.Printf("INFO: Copied newsletter assets to issue %s folder", issueNumber)
+			}
+			
+			// Replace the hardcoded URLs in HTML with issue-specific ones
+			if avatarURL != "" {
+				htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/avatar.jpg", avatarURL)
+			}
+			if bannerURL != "" {
+				htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/banner.png", bannerURL)
+			}
+			// Also replace the issue's banner.jpg URL
+			issueBannerURL := fmt.Sprintf("%s/images/newsletter/%s/banner.jpg", blogConfig.BaseURL, issueNumber)
+			htmlContent = strings.ReplaceAll(htmlContent, fmt.Sprintf("https://liquid.engineer/issues/%s/banner.jpg", issueNumber), issueBannerURL)
+		} else {
+			// In dry run, just show what the URLs would be
+			avatarURL := fmt.Sprintf("%s/images/newsletter/%s/avatar.jpg", blogConfig.BaseURL, issueNumber)
+			bannerURL := fmt.Sprintf("%s/images/newsletter/%s/newsletter_banner.png", blogConfig.BaseURL, issueNumber)
+			issueBannerURL := fmt.Sprintf("%s/images/newsletter/%s/banner.jpg", blogConfig.BaseURL, issueNumber)
+			htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/avatar.jpg", avatarURL)
+			htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/banner.png", bannerURL)
+			htmlContent = strings.ReplaceAll(htmlContent, fmt.Sprintf("https://liquid.engineer/issues/%s/banner.jpg", issueNumber), issueBannerURL)
+		}
+	}
+	
+	if dryRun {
+		fmt.Printf("Would upload images to %s blog from: %s\n", blogName, contentDir)
+		fmt.Printf("To repository: %s\n", blogConfig.RepoPath)
+		// Show newsletter assets copy for Personal blog
+		if blogName == "Personal" && downloadPrintItems {
+			fmt.Printf("Would copy newsletter assets (avatar.jpg, newsletter_banner.png) to issue %s\n", issueNumber)
+		}
+		// Show print images download only if enabled for this blog
+		if downloadPrintItems {
+			for i, item := range content.PrintItems {
+				if item.ImageURL != "" && strings.HasPrefix(item.ImageURL, "http") {
+					fmt.Printf("Would download print image %d to %s: %s\n", i+1, blogName, item.ImageURL)
+				}
+			}
+		}
+		return htmlContent
+	}
+	
+	// Process and upload local images
+	imageMap, err := uploader.ProcessContentImages(contentDir, issueNumber)
+	if err != nil {
+		log.Printf("WARNING: Failed to process images: %v", err)
+		return htmlContent
+	}
+	
+	if len(imageMap) > 0 {
+		log.Printf("INFO: Uploaded %d local images to %s blog repository", len(imageMap), blogName)
+		// Replace local image URLs with public URLs
+		htmlContent = ReplaceImageURLs(htmlContent, imageMap)
+	}
+	
+	// Download and replace print item images only if enabled
+	if downloadPrintItems {
+		for i, item := range content.PrintItems {
+			if item.ImageURL != "" && strings.HasPrefix(item.ImageURL, "http") {
+				// Generate a filename based on the item title
+				filename := fmt.Sprintf("print-item-%d", i+1)
+				// Sanitize title for filename
+				safeTitle := strings.ToLower(item.Title)
+				safeTitle = strings.ReplaceAll(safeTitle, " ", "-")
+				safeTitle = strings.ReplaceAll(safeTitle, "'", "")
+				safeTitle = strings.ReplaceAll(safeTitle, "\"", "")
+				if safeTitle != "" {
+					filename = safeTitle
+				}
+				
+				// Download the image
+				publicURL, err := uploader.DownloadImage(item.ImageURL, issueNumber, filename)
+				if err != nil {
+					log.Printf("WARNING: Failed to download print image %d to %s: %v", i+1, blogName, err)
+					continue
+				}
+				
+				// Replace the old URL with the new public URL in HTML content
+				// Use multiple replacement patterns to handle different cases
+				oldPattern := fmt.Sprintf(`src="%s"`, item.ImageURL)
+				newPattern := fmt.Sprintf(`src="%s"`, publicURL)
+				htmlContent = strings.ReplaceAll(htmlContent, oldPattern, newPattern)
+				
+				// Also replace in href attributes for links
+				htmlContent = strings.ReplaceAll(htmlContent, item.ImageURL, publicURL)
+				
+				log.Printf("INFO: Replaced print image URL: %s -> %s", item.ImageURL, publicURL)
+				
+				// Update the content model with the new URL for consistency
+				content.PrintItems[i].ImageURL = publicURL
+			}
+		}
+	}
+	
+	return htmlContent
+}
+
 func formatNewsletterContentMarkdown(content *models.Content) string {
 	var builder strings.Builder
 	
@@ -291,7 +430,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	}
 	
 	// Links section
-	builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 32px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What I Learned This Week</h2>`)
+	builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What I Learned This Week</h2>`)
 	
 	for _, link := range content.Links {
 		linkText := "LINK"
@@ -303,19 +442,20 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	
 	// Print items section if present
 	if len(content.PrintItems) > 0 {
-		builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 32px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What to Print This Week</h2>`)
+		builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What to Print This Week</h2>`)
 		builder.WriteString(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">This newsletter started out on 3D printing. If you haven't had any contact with it, you should, it's great! Here's the most interesting and fun projects I saw last week.</p>`)
 		
 		for _, item := range content.PrintItems {
-			// Create a clickable card layout with table structure
-			builder.WriteString(fmt.Sprintf(`<a href="%s" style="text-decoration: none; color: inherit; display: block;">`, item.LinkURL))
+			// Create a card layout with table structure
 			builder.WriteString(`<table cellpadding="0" cellspacing="0" style="width: 100%; margin: 24px 0; border-collapse: collapse;">`)
 			builder.WriteString(`<tr>`)
 			
-			// Image column (150px fixed width)
+			// Image column (150px fixed width) - make image clickable
 			builder.WriteString(`<td style="width: 150px; padding-right: 20px; vertical-align: top;">`)
 			if item.ImageURL != "" {
+				builder.WriteString(fmt.Sprintf(`<a href="%s" style="display: block; text-decoration: none;">`, item.LinkURL))
 				builder.WriteString(fmt.Sprintf(`<img src="%s" style="width: 150px; height: 150px; object-fit: cover; border-radius: 8px; display: block;">`, item.ImageURL))
+				builder.WriteString(`</a>`)
 			} else {
 				builder.WriteString(`<div style="width: 150px; height: 150px; background-color: #f0f0f0; border-radius: 8px;"></div>`)
 			}
@@ -329,12 +469,14 @@ func formatNewsletterContentHTML(content *models.Content) string {
 				builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; color: #353535; font-weight: 400; line-height: 1.5; margin: 0 0 12px 0;">%s</p>`, item.Description))
 			}
 			
+			// Make button clickable with proper <a> tag
+			builder.WriteString(fmt.Sprintf(`<a href="%s" style="text-decoration: none; display: inline-block;">`, item.LinkURL))
 			builder.WriteString(`<span style="display: inline-block; background-color: #eab2bb; color: #ffffff; border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 10px 16px; font-size: 14px; font-weight: 700;">visit model page</span>`)
+			builder.WriteString(`</a>`)
 			builder.WriteString(`</td>`)
 			
 			builder.WriteString(`</tr>`)
 			builder.WriteString(`</table>`)
-			builder.WriteString(`</a>`)
 		}
 	}
 	
