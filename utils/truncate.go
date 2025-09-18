@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -69,4 +70,13 @@ func CreateThreadedPosts(text string, charLimit int, hashtags string) []string {
 	}
 	
 	return posts
+}
+
+// StripMarkdownLinks removes markdown links from text, keeping only the link text
+// For example: [link text](url) becomes "link text"
+func StripMarkdownLinks(text string) string {
+	// Pattern to match markdown links [text](url)
+	re := regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	// Replace with just the link text (captured group 1)
+	return re.ReplaceAllString(text, "$1")
 }

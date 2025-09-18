@@ -71,8 +71,9 @@ func parseSingleLink(block string) (models.CuratedLink, error) {
 		}
 	}
 	
+	// Title is now optional - it's integrated into MyTake
 	if !titleFound {
-		return link, fmt.Errorf("title not found in link block")
+		link.Title = "" // Empty title is fine
 	}
 	if !urlFound {
 		return link, fmt.Errorf("URL not found in link block")
@@ -80,7 +81,7 @@ func parseSingleLink(block string) (models.CuratedLink, error) {
 	if !myTakeFound {
 		return link, fmt.Errorf("MyTake not found in link block")
 	}
-	
+
 	// Keyword is optional - default to "link" if not specified
 	if !keywordFound {
 		link.Keyword = "link"

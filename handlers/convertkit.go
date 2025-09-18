@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -107,10 +108,10 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 			}
 		}
 		
-		fmt.Printf("\nHTML Preview (first 1500 chars):\n")
+		fmt.Printf("\nHTML Preview (first 3000 chars):\n")
 		preview := richHTML
-		if len(preview) > 1500 {
-			preview = preview[:1500] + "...[truncated]"
+		if len(preview) > 3000 {
+			preview = preview[:3000] + "...[truncated]"
 		}
 		fmt.Printf("%s\n\n", preview)
 		return nil
@@ -242,17 +243,12 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 			if bannerURL != "" {
 				htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/banner.png", bannerURL)
 			}
-			// Also replace the issue's banner.jpg URL
-			issueBannerURL := fmt.Sprintf("%s/images/newsletter/%s/banner.jpg", blogConfig.BaseURL, issueNumber)
-			htmlContent = strings.ReplaceAll(htmlContent, fmt.Sprintf("https://liquid.engineer/issues/%s/banner.jpg", issueNumber), issueBannerURL)
 		} else {
 			// In dry run, just show what the URLs would be
 			avatarURL := fmt.Sprintf("%s/images/newsletter/%s/avatar.jpg", blogConfig.BaseURL, issueNumber)
 			bannerURL := fmt.Sprintf("%s/images/newsletter/%s/newsletter_banner.png", blogConfig.BaseURL, issueNumber)
-			issueBannerURL := fmt.Sprintf("%s/images/newsletter/%s/banner.jpg", blogConfig.BaseURL, issueNumber)
 			htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/avatar.jpg", avatarURL)
 			htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/banner.png", bannerURL)
-			htmlContent = strings.ReplaceAll(htmlContent, fmt.Sprintf("https://liquid.engineer/issues/%s/banner.jpg", issueNumber), issueBannerURL)
 		}
 	}
 	
@@ -329,16 +325,70 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 	return htmlContent
 }
 
+// processImagePathsForNewsletter converts image paths to absolute URLs for the newsletter
+func processImagePathsForNewsletter(thoughtPiece string, contentID string) string {
+	// Extract issue number from contentID (e.g., "issue50" -> "50")
+	issueNumber := strings.TrimPrefix(contentID, "issue")
+
+	// Use regex to find all markdown image references
+	re := regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
+
+	result := re.ReplaceAllStringFunc(thoughtPiece, func(match string) string {
+		// Extract the alt text and path from the match
+		submatches := re.FindStringSubmatch(match)
+		if len(submatches) < 3 {
+			return match
+		}
+
+		altText := submatches[1]
+		imagePath := submatches[2]
+
+		// Skip if it's already an absolute URL
+		if strings.HasPrefix(imagePath, "http://") || strings.HasPrefix(imagePath, "https://") {
+			return match
+		}
+
+		// Extract just the filename from the path
+		filename := filepath.Base(imagePath)
+
+		// Check if it's an image file based on extension
+		ext := strings.ToLower(filepath.Ext(filename))
+		imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+		isImage := false
+		for _, validExt := range imageExts {
+			if ext == validExt {
+				isImage = true
+				break
+			}
+		}
+
+		if !isImage {
+			return match
+		}
+
+		// Build the absolute URL for www.stefanmunz.com
+		absoluteURL := fmt.Sprintf("https://www.stefanmunz.com/images/newsletter/%s/%s", issueNumber, filename)
+
+		// Return with absolute URL
+		return fmt.Sprintf("![%s](%s)", altText, absoluteURL)
+	})
+
+	return result
+}
+
 func formatNewsletterContentMarkdown(content *models.Content) string {
 	var builder strings.Builder
-	
+
 	// Add header with title and issue number
 	builder.WriteString(fmt.Sprintf("# %s\n\n", content.Metadata.Title))
 	builder.WriteString(fmt.Sprintf("*The Liquid Engineer – Issue No. %s*\n\n", strings.TrimPrefix(content.Metadata.ContentID, "issue")))
 	builder.WriteString("---\n\n")
-	
-	// Add the thought piece
-	builder.WriteString(content.ThoughtPiece)
+
+	// Process the thought piece to use absolute URLs for images
+	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID)
+
+	// Add the processed thought piece
+	builder.WriteString(processedThoughtPiece)
 	builder.WriteString("\n\n")
 	
 	// Add the links section
@@ -413,19 +463,25 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	builder.WriteString(fmt.Sprintf(`<h1 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 36px; color: #12363f; font-weight: 400; line-height: 1.5; margin: 0;">%s</h1>`, content.Metadata.Title))
 	builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #4e585a; font-weight: 400; line-height: 1.5; margin-top: 8px;">The Liquid Engineer – Issue No. %s</p>`, strings.TrimPrefix(content.Metadata.ContentID, "issue")))
 	builder.WriteString(`</div>`)
-	
-	// Article banner image if it exists for this issue
-	issueFolder := strings.TrimPrefix(content.Metadata.ContentID, "issue")
-	if issueFolder != "" {
-		builder.WriteString(fmt.Sprintf(`<img src="https://liquid.engineer/issues/%s/banner.jpg" style="width: 100%%; height: auto; display: block; margin: 24px 0;" alt="Issue %s Banner">`, issueFolder, issueFolder))
-	}
-	
+
+	// Process the thought piece to use absolute URLs for images
+	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID)
+
 	// Thought piece
-	paragraphs := strings.Split(content.ThoughtPiece, "\n\n")
+	paragraphs := strings.Split(processedThoughtPiece, "\n\n")
 	for _, para := range paragraphs {
 		if strings.TrimSpace(para) != "" {
-			para = convertMarkdownLinksToHTML(para)
-			builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">%s</p>`, para))
+			// Check if this paragraph contains a markdown image
+			if strings.Contains(para, "![") {
+				// Convert markdown images to HTML
+				para = convertMarkdownImagesToHTML(para)
+				// Add the image without wrapping in a paragraph tag
+				builder.WriteString(para)
+			} else {
+				// Regular paragraph with potential links
+				para = convertMarkdownLinksToHTML(para)
+				builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">%s</p>`, para))
+			}
 		}
 	}
 	
@@ -602,6 +658,27 @@ func convertMarkdownToBasicHTML(markdown string) string {
 	}
 	
 	return html.String()
+}
+
+// Helper function to convert markdown images to HTML
+func convertMarkdownImagesToHTML(text string) string {
+	// Use regex to find markdown images ![alt](url)
+	re := regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
+
+	result := re.ReplaceAllStringFunc(text, func(match string) string {
+		submatches := re.FindStringSubmatch(match)
+		if len(submatches) < 3 {
+			return match
+		}
+
+		altText := submatches[1]
+		imageURL := submatches[2]
+
+		// Return HTML img tag with styling
+		return fmt.Sprintf(`<img src="%s" alt="%s" style="width: 100%%; max-width: 600px; height: auto; display: block; margin: 24px auto;">`, imageURL, altText)
+	})
+
+	return result
 }
 
 // Helper function to convert markdown links to HTML

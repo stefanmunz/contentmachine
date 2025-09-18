@@ -75,10 +75,13 @@ func HandleBufferScheduling(cfg *config.Config, content *models.Content, dryRun 
 
 func generatePlatformPosts(content *models.Content, blogURL string, platform models.Platform, profileID string) []BufferPost {
 	var posts []BufferPost
-	
-	// 1. Main thought piece post - expanded to ~1000 characters for manual editing
-	thoughtPieceText := fmt.Sprintf("%s\n\nRead the full article: %s?utm_source=social&utm_medium=social\n\n%s",
-		utils.TruncateText(content.ThoughtPiece, 900), // Increased from 200 to 900
+
+	// Strip markdown links from the thought piece for social media
+	strippedThoughtPiece := utils.StripMarkdownLinks(content.ThoughtPiece)
+
+	// 1. Main thought piece post - expanded to ~800 characters to leave room for links
+	thoughtPieceText := fmt.Sprintf("%s\n\nRead the full article with links here: %s?utm_source=social&utm_medium=social\n\nSubscribe to my newsletter to get pieces like this into your inbox automatically, every week! Plus the most interesting links I found this week. https://liquid.engineer/\n\n%s",
+		utils.TruncateText(strippedThoughtPiece, 800), // Reduced to 800 to accommodate additional text
 		blogURL,
 		content.Metadata.SocialMediaHashtags,
 	)
@@ -114,7 +117,7 @@ func scheduleBufferPost(accessToken string, post BufferPost) error {
 	data.Add("profile_ids[]", post.ProfileID)
 	
 	// Only the first thought piece post gets "top" priority
-	if !post.IsReply && strings.Contains(post.Text, "Read the full article") {
+	if !post.IsReply && strings.Contains(post.Text, "Read the full article with links") {
 		data.Set("top", "true")
 	}
 	
@@ -193,7 +196,7 @@ func displayManualPostingOutput(posts []BufferPost, cfg *config.Config) {
 	
 	linkCounter := 1
 	for _, post := range posts {
-		if strings.Contains(post.Text, "Read the full article") {
+		if strings.Contains(post.Text, "Read the full article with links") {
 			fmt.Printf("\n[MAIN POST - Newsletter Summary]:\n")
 		} else {
 			fmt.Printf("\n[CURATED LINK %d]:\n", linkCounter)
