@@ -145,18 +145,18 @@ func HandleAstroPost(cfg *config.Config, content *models.Content, dryRun bool) e
 		log.Printf("ERROR: Failed to write to personal blog: %v", err)
 		// Continue with OnTree blog even if personal blog fails
 	}
-	
+
 	// Write to OnTree blog if configured
 	if cfg.OnTreeBlog.ContentPath != "" {
 		if err := writeToBlog(cfg.OnTreeBlog, "OnTree", content, dryRun); err != nil {
 			log.Printf("ERROR: Failed to write to OnTree blog: %v", err)
 		}
 	}
-	
+
 	if dryRun {
 		fmt.Printf("\n")
 	}
-	
+
 	return nil
 }
 
@@ -272,19 +272,19 @@ func buildBlogContentWithProcessedContent(content *models.Content, processedThou
 func generateFilenameFromTitle(title string) string {
 	// Convert to lowercase
 	filename := strings.ToLower(title)
-	
+
 	// Remove special characters except spaces and alphanumeric
 	re := regexp.MustCompile(`[^a-z0-9\s]+`)
 	filename = re.ReplaceAllString(filename, "")
-	
+
 	// Replace multiple spaces with single space
 	re = regexp.MustCompile(`\s+`)
 	filename = re.ReplaceAllString(filename, " ")
-	
+
 	// Trim spaces and replace with dashes
 	filename = strings.TrimSpace(filename)
 	filename = strings.ReplaceAll(filename, " ", "-")
-	
+
 	// Add .md extension
 	return filename + ".md"
 }
@@ -296,13 +296,13 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer sourceFile.Close()
-	
+
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 	defer destFile.Close()
-	
+
 	_, err = io.Copy(destFile, sourceFile)
 	return err
 }

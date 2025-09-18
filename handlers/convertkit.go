@@ -16,10 +16,10 @@ import (
 
 // Kit v4 API request structures
 type KitBroadcastRequest struct {
-	EmailTemplateID int    `json:"email_template_id"`
-	Subject         string `json:"subject"`
-	Content         string `json:"content"`
-	Public          bool   `json:"public"`
+	EmailTemplateID int     `json:"email_template_id"`
+	Subject         string  `json:"subject"`
+	Content         string  `json:"content"`
+	Public          bool    `json:"public"`
 	SendAt          *string `json:"send_at"` // null for draft
 }
 
@@ -87,14 +87,14 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 
 	// Generate rich HTML with inline styles
 	richHTML := formatNewsletterContentHTML(content)
-	
+
 	// Upload images to both blogs if configured
 	richHTML = uploadAndReplaceImagesMultiBlogs(cfg, content, richHTML, dryRun)
-	
+
 	if dryRun {
 		fmt.Printf("📧 KIT (v4 API):\n")
 		fmt.Printf("Would create draft with subject: \"%s\"\n", content.Metadata.NewsletterSubject)
-		
+
 		// Show available templates in dry run
 		templates, err := GetEmailTemplates(cfg)
 		if err == nil {
@@ -107,7 +107,7 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 				fmt.Printf("\n")
 			}
 		}
-		
+
 		fmt.Printf("\nHTML Preview (first 3000 chars):\n")
 		preview := richHTML
 		if len(preview) > 3000 {
@@ -116,13 +116,13 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 		fmt.Printf("%s\n\n", preview)
 		return nil
 	}
-	
+
 	// First, get available templates and find the Custom HTML template
 	templates, err := GetEmailTemplates(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to fetch email templates: %w", err)
 	}
-	
+
 	// API doesn't support "Starting point" templates, so we need to use Classic templates
 	// Look for Text only template which is Classic and supports HTML content
 	templateID := 0
@@ -134,17 +134,17 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 			break
 		}
 	}
-	
+
 	// Fallback to any template if Text only not found
 	if templateID == 0 && len(templates) > 0 {
 		templateID = templates[0].ID
 		log.Printf("INFO: Using template '%s' (ID: %d)", templates[0].Name, templateID)
 	}
-	
+
 	if templateID == 0 {
 		return fmt.Errorf("no email templates available")
 	}
-	
+
 	// Create the request with Kit v4 structure
 	reqData := KitBroadcastRequest{
 		EmailTemplateID: templateID,
@@ -153,22 +153,22 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 		Public:          false,
 		SendAt:          nil, // nil means draft
 	}
-	
+
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	// Create the request with proper v4 authentication
 	req, err := http.NewRequest("POST", "https://api.kit.com/v4/broadcasts", bytes.NewReader(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("X-Kit-Api-Key", cfg.KitAPIKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	
+
 	// Make the API call
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -176,21 +176,21 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 		return fmt.Errorf("failed to make Kit API call: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("Kit API error (status %d): %s", resp.StatusCode, string(body))
 	}
-	
+
 	var kitResp KitBroadcastResponse
 	if err := json.Unmarshal(body, &kitResp); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	log.Printf("INFO: Kit draft created with ID: %d", kitResp.Broadcast.ID)
 	return nil
 }
@@ -201,12 +201,12 @@ func uploadAndReplaceImagesMultiBlogs(cfg *config.Config, content *models.Conten
 	if cfg.PersonalBlog.RepoPath != "" && cfg.PersonalBlog.BaseURL != "" {
 		htmlContent = uploadImagesToSingleBlog(cfg.PersonalBlog, "Personal", content, htmlContent, dryRun, true)
 	}
-	
+
 	// Upload only banner images to OnTree blog (no print items needed)
 	if cfg.OnTreeBlog.RepoPath != "" && cfg.OnTreeBlog.BaseURL != "" {
 		uploadImagesToSingleBlog(cfg.OnTreeBlog, "OnTree", content, htmlContent, dryRun, false)
 	}
-	
+
 	return htmlContent
 }
 
@@ -218,24 +218,24 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 		log.Printf("WARNING: No issue number found for %s blog, skipping image upload", blogName)
 		return htmlContent
 	}
-	
+
 	// Get the content directory path
 	contentDir := filepath.Dir(content.OriginalPath)
-	
+
 	// Create image uploader
 	uploader := NewImageUploader(blogConfig.RepoPath, blogConfig.BaseURL)
-	
+
 	// Only copy avatar and banner for Personal blog (stefanmunz.com)
 	if blogName == "Personal" && downloadPrintItems {
 		if !dryRun {
 			// Get the content machine root directory (parent of content directory)
 			contentMachineRoot := filepath.Dir(filepath.Dir(contentDir))
 			avatarURL, bannerURL, _ := uploader.CopyNewsletterAssets(contentMachineRoot, issueNumber)
-			
+
 			if avatarURL != "" || bannerURL != "" {
 				log.Printf("INFO: Copied newsletter assets to issue %s folder", issueNumber)
 			}
-			
+
 			// Replace the hardcoded URLs in HTML with issue-specific ones
 			if avatarURL != "" {
 				htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/avatar.jpg", avatarURL)
@@ -251,7 +251,7 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 			htmlContent = strings.ReplaceAll(htmlContent, "https://liquid.engineer/images/banner.png", bannerURL)
 		}
 	}
-	
+
 	if dryRun {
 		fmt.Printf("Would upload images to %s blog from: %s\n", blogName, contentDir)
 		fmt.Printf("To repository: %s\n", blogConfig.RepoPath)
@@ -269,20 +269,20 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 		}
 		return htmlContent
 	}
-	
+
 	// Process and upload local images
 	imageMap, err := uploader.ProcessContentImages(contentDir, issueNumber)
 	if err != nil {
 		log.Printf("WARNING: Failed to process images: %v", err)
 		return htmlContent
 	}
-	
+
 	if len(imageMap) > 0 {
 		log.Printf("INFO: Uploaded %d local images to %s blog repository", len(imageMap), blogName)
 		// Replace local image URLs with public URLs
 		htmlContent = ReplaceImageURLs(htmlContent, imageMap)
 	}
-	
+
 	// Download and replace print item images only if enabled
 	if downloadPrintItems {
 		for i, item := range content.PrintItems {
@@ -297,31 +297,31 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 				if safeTitle != "" {
 					filename = safeTitle
 				}
-				
+
 				// Download the image
 				publicURL, err := uploader.DownloadImage(item.ImageURL, issueNumber, filename)
 				if err != nil {
 					log.Printf("WARNING: Failed to download print image %d to %s: %v", i+1, blogName, err)
 					continue
 				}
-				
+
 				// Replace the old URL with the new public URL in HTML content
 				// Use multiple replacement patterns to handle different cases
 				oldPattern := fmt.Sprintf(`src="%s"`, item.ImageURL)
 				newPattern := fmt.Sprintf(`src="%s"`, publicURL)
 				htmlContent = strings.ReplaceAll(htmlContent, oldPattern, newPattern)
-				
+
 				// Also replace in href attributes for links
 				htmlContent = strings.ReplaceAll(htmlContent, item.ImageURL, publicURL)
-				
+
 				log.Printf("INFO: Replaced print image URL: %s -> %s", item.ImageURL, publicURL)
-				
+
 				// Update the content model with the new URL for consistency
 				content.PrintItems[i].ImageURL = publicURL
 			}
 		}
 	}
-	
+
 	return htmlContent
 }
 
@@ -390,10 +390,10 @@ func formatNewsletterContentMarkdown(content *models.Content) string {
 	// Add the processed thought piece
 	builder.WriteString(processedThoughtPiece)
 	builder.WriteString("\n\n")
-	
+
 	// Add the links section
 	builder.WriteString("## What I Learned This Week\n\n")
-	
+
 	for _, link := range content.Links {
 		// Add the description/MyTake with the link inline
 		linkText := "LINK"
@@ -402,43 +402,43 @@ func formatNewsletterContentMarkdown(content *models.Content) string {
 		}
 		builder.WriteString(fmt.Sprintf("%s [%s](%s)\n\n", link.MyTake, linkText, link.URL))
 	}
-	
+
 	// Add "What to Print" section if present
 	if len(content.PrintItems) > 0 {
 		builder.WriteString("## What to Print This Week\n\n")
 		builder.WriteString("This newsletter started out on 3D printing. If you haven't had any contact with it, you should, it's great! Here's the most interesting and fun projects I saw last week.\n\n")
-		
+
 		for _, item := range content.PrintItems {
 			builder.WriteString(fmt.Sprintf("### %s\n\n", item.Title))
-			
+
 			if item.ImageURL != "" {
 				builder.WriteString(fmt.Sprintf("![%s](%s)\n\n", item.Title, item.ImageURL))
 			}
-			
+
 			if item.Description != "" {
 				builder.WriteString(fmt.Sprintf("%s\n\n", item.Description))
 			}
-			
+
 			if item.LinkURL != "" {
 				builder.WriteString(fmt.Sprintf("[visit model page](%s)\n\n", item.LinkURL))
 			}
-			
+
 			builder.WriteString("---\n\n")
 		}
 	}
-	
+
 	// Add footer section if present
 	if content.FooterContent != "" {
 		builder.WriteString(content.FooterContent)
 		builder.WriteString("\n")
 	}
-	
+
 	return builder.String()
 }
 
 func formatNewsletterContentHTML(content *models.Content) string {
 	var builder strings.Builder
-	
+
 	// Start with complete HTML document structure with max-width container
 	builder.WriteString(`<!DOCTYPE html>`)
 	builder.WriteString(`<html>`)
@@ -451,13 +451,13 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	builder.WriteString(`</style>`)
 	builder.WriteString(`</head>`)
 	builder.WriteString(`<body style="margin: 0; padding: 0;">`)
-	
+
 	// Main container with max width
 	builder.WriteString(`<div class="container" style="max-width: 600px; margin: 0 auto; padding: 20px;">`)
-	
+
 	// Top banner image - full width within container
 	builder.WriteString(`<img src="https://liquid.engineer/images/banner.png" style="width: 100%; height: auto; display: block; margin-bottom: 24px;" alt="The Liquid Engineer">`)
-	
+
 	// Header without green border
 	builder.WriteString(`<div style="margin: 24px 0;">`)
 	builder.WriteString(fmt.Sprintf(`<h1 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 36px; color: #12363f; font-weight: 400; line-height: 1.5; margin: 0;">%s</h1>`, content.Metadata.Title))
@@ -484,10 +484,10 @@ func formatNewsletterContentHTML(content *models.Content) string {
 			}
 		}
 	}
-	
+
 	// Links section
 	builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What I Learned This Week</h2>`)
-	
+
 	for _, link := range content.Links {
 		linkText := "LINK"
 		if strings.Contains(link.URL, "youtube.com") || strings.Contains(link.URL, "youtu.be") {
@@ -495,17 +495,17 @@ func formatNewsletterContentHTML(content *models.Content) string {
 		}
 		builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">%s <a href="%s" style="color: #0066cc; text-decoration: underline;">%s</a></p>`, link.MyTake, link.URL, linkText))
 	}
-	
+
 	// Print items section if present
 	if len(content.PrintItems) > 0 {
 		builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What to Print This Week</h2>`)
 		builder.WriteString(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">This newsletter started out on 3D printing. If you haven't had any contact with it, you should, it's great! Here's the most interesting and fun projects I saw last week.</p>`)
-		
+
 		for _, item := range content.PrintItems {
 			// Create a card layout with table structure
 			builder.WriteString(`<table cellpadding="0" cellspacing="0" style="width: 100%; margin: 24px 0; border-collapse: collapse;">`)
 			builder.WriteString(`<tr>`)
-			
+
 			// Image column (150px fixed width) - make image clickable
 			builder.WriteString(`<td style="width: 150px; padding-right: 20px; vertical-align: top;">`)
 			if item.ImageURL != "" {
@@ -516,32 +516,32 @@ func formatNewsletterContentHTML(content *models.Content) string {
 				builder.WriteString(`<div style="width: 150px; height: 150px; background-color: #f0f0f0; border-radius: 8px;"></div>`)
 			}
 			builder.WriteString(`</td>`)
-			
+
 			// Content column
 			builder.WriteString(`<td style="vertical-align: top;">`)
 			builder.WriteString(fmt.Sprintf(`<h3 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.3; margin: 0 0 8px 0;">%s</h3>`, item.Title))
-			
+
 			if item.Description != "" {
 				builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; color: #353535; font-weight: 400; line-height: 1.5; margin: 0 0 12px 0;">%s</p>`, item.Description))
 			}
-			
+
 			// Make button clickable with proper <a> tag
 			builder.WriteString(fmt.Sprintf(`<a href="%s" style="text-decoration: none; display: inline-block;">`, item.LinkURL))
 			builder.WriteString(`<span style="display: inline-block; background-color: #eab2bb; color: #ffffff; border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 10px 16px; font-size: 14px; font-weight: 700;">visit model page</span>`)
 			builder.WriteString(`</a>`)
 			builder.WriteString(`</td>`)
-			
+
 			builder.WriteString(`</tr>`)
 			builder.WriteString(`</table>`)
 		}
 	}
-	
+
 	// Footer if present
 	if content.FooterContent != "" {
 		builder.WriteString(`<div style="background-color: #f9f9f9; padding: 24px; margin: 24px 0; border-radius: 8px;">`)
 		builder.WriteString(`<table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">`)
 		builder.WriteString(`<tr>`)
-		
+
 		// Content column on the left
 		builder.WriteString(`<td style="vertical-align: middle; padding-right: 20px;">`)
 		footerLines := strings.Split(content.FooterContent, "\n")
@@ -556,23 +556,23 @@ func formatNewsletterContentHTML(content *models.Content) string {
 			}
 		}
 		builder.WriteString(`</td>`)
-		
+
 		// Avatar column on the right (180px round image)
 		builder.WriteString(`<td style="width: 180px; vertical-align: middle; text-align: right;">`)
 		builder.WriteString(`<img src="https://liquid.engineer/images/avatar.jpg" style="width: 180px; height: 180px; border-radius: 50%; object-fit: cover; display: block;" alt="Stefan Munz">`)
 		builder.WriteString(`</td>`)
-		
+
 		builder.WriteString(`</tr>`)
 		builder.WriteString(`</table>`)
 		builder.WriteString(`</div>`)
 	}
-	
+
 	// Close container div
 	builder.WriteString(`</div>`)
-	
+
 	builder.WriteString(`</body>`)
 	builder.WriteString(`</html>`)
-	
+
 	return builder.String()
 }
 
@@ -580,10 +580,10 @@ func convertMarkdownToBasicHTML(markdown string) string {
 	var html strings.Builder
 	lines := strings.Split(markdown, "\n")
 	inParagraph := false
-	
+
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Handle headers
 		if strings.HasPrefix(trimmed, "### ") {
 			if inParagraph {
@@ -618,29 +618,29 @@ func convertMarkdownToBasicHTML(markdown string) string {
 		} else {
 			// Regular text - convert markdown elements
 			processed := trimmed
-			
+
 			// Convert bold
 			processed = strings.ReplaceAll(processed, "**", "")
-			
+
 			// Convert italic
 			if strings.HasPrefix(processed, "*") && strings.HasSuffix(processed, "*") && len(processed) > 2 {
 				processed = fmt.Sprintf("<em>%s</em>", processed[1:len(processed)-1])
 			}
-			
+
 			// Convert markdown links to HTML
 			processed = convertMarkdownLinksToHTML(processed)
-			
+
 			// Convert markdown images to HTML
 			if strings.HasPrefix(processed, "![") {
 				start := strings.Index(processed, "](")
 				end := strings.LastIndex(processed, ")")
 				if start > 0 && end > start {
 					alt := processed[2:start]
-					src := processed[start+2:end]
+					src := processed[start+2 : end]
 					processed = fmt.Sprintf(`<img src="%s" alt="%s" style="max-width: 100%%;">`, src, alt)
 				}
 			}
-			
+
 			// Start or continue paragraph
 			if !inParagraph {
 				html.WriteString("<p>")
@@ -651,12 +651,12 @@ func convertMarkdownToBasicHTML(markdown string) string {
 			html.WriteString(processed)
 		}
 	}
-	
+
 	// Close any open paragraph
 	if inParagraph {
 		html.WriteString("</p>\n")
 	}
-	
+
 	return html.String()
 }
 
@@ -698,11 +698,11 @@ func convertMarkdownLinksToHTML(text string) string {
 		if urlEnd == -1 {
 			break
 		}
-		
+
 		linkText := text[start+1 : start+end]
 		url := text[start+end+2 : start+end+urlEnd]
 		htmlLink := fmt.Sprintf(`<a href="%s" style="color: #0000ff;">%s</a>`, url, linkText)
-		
+
 		text = text[:start] + htmlLink + text[start+end+urlEnd+1:]
 	}
 	return text

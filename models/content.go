@@ -28,7 +28,7 @@ type Content struct {
 	ThoughtPiece  string
 	Links         []CuratedLink
 	PrintItems    []PrintItem // For "What to Print" section
-	FooterContent string       // For author bio/about section
+	FooterContent string      // For author bio/about section
 	OriginalPath  string
 }
 

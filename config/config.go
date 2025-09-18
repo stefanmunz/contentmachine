@@ -14,16 +14,16 @@ type BlogConfig struct {
 }
 
 type Config struct {
-	KitAPIKey           string // Kit v4 API key
-	PersonalBlog        BlogConfig // Personal blog (stefanmunz.com)
-	OnTreeBlog          BlogConfig // OnTree blog
-	BufferAccessToken   string
-	BufferProfileIDs    []string
-	ProfilePlatformMap  map[string]models.Platform
+	KitAPIKey          string     // Kit v4 API key
+	PersonalBlog       BlogConfig // Personal blog (stefanmunz.com)
+	OnTreeBlog         BlogConfig // OnTree blog
+	BufferAccessToken  string
+	BufferProfileIDs   []string
+	ProfilePlatformMap map[string]models.Platform
 	// Legacy fields for backward compatibility
-	AstroContentPath    string
-	BlogBaseURL         string
-	BlogRepoPath        string
+	AstroContentPath string
+	BlogBaseURL      string
+	BlogRepoPath     string
 }
 
 func Load() (*Config, error) {

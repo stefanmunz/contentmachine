@@ -38,12 +38,12 @@ func (u *ImageUploader) UploadImage(sourcePath string, issueNumber string) (stri
 	if err := os.MkdirAll(publicDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create public directory: %w", err)
 	}
-	
+
 	imagesDir := filepath.Join(publicDir, "images")
 	if err := os.MkdirAll(imagesDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create images directory: %w", err)
 	}
-	
+
 	newsletterDir := filepath.Join(imagesDir, "newsletter", issueNumber)
 	if err := os.MkdirAll(newsletterDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create newsletter directory: %w", err)
@@ -51,7 +51,7 @@ func (u *ImageUploader) UploadImage(sourcePath string, issueNumber string) (stri
 
 	// Get the filename from source path
 	filename := filepath.Base(sourcePath)
-	
+
 	// Destination path in the blog repository
 	destPath := filepath.Join(newsletterDir, filename)
 
@@ -63,7 +63,7 @@ func (u *ImageUploader) UploadImage(sourcePath string, issueNumber string) (stri
 	// Return the public URL
 	publicURL := fmt.Sprintf("%s/images/newsletter/%s/%s", u.BaseURL, issueNumber, filename)
 	log.Printf("INFO: Image uploaded: %s -> %s", sourcePath, publicURL)
-	
+
 	return publicURL, nil
 }
 
@@ -71,21 +71,21 @@ func (u *ImageUploader) UploadImage(sourcePath string, issueNumber string) (stri
 // Returns a map of local paths to public URLs
 func (u *ImageUploader) ProcessContentImages(contentDir string, issueNumber string) (map[string]string, error) {
 	imageMap := make(map[string]string)
-	
+
 	// Common image extensions
 	extensions := []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
-	
+
 	// Walk through the content directory
 	err := filepath.Walk(contentDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Skip directories
 		if info.IsDir() {
 			return nil
 		}
-		
+
 		// Check if it's an image file
 		ext := strings.ToLower(filepath.Ext(path))
 		isImage := false
@@ -95,29 +95,29 @@ func (u *ImageUploader) ProcessContentImages(contentDir string, issueNumber stri
 				break
 			}
 		}
-		
+
 		if !isImage {
 			return nil
 		}
-		
+
 		// Upload the image
 		publicURL, err := u.UploadImage(path, issueNumber)
 		if err != nil {
 			log.Printf("WARNING: Failed to upload image %s: %v", path, err)
 			return nil // Continue with other images
 		}
-		
+
 		// Store the mapping (relative path from content dir)
 		relPath, _ := filepath.Rel(contentDir, path)
 		imageMap[relPath] = publicURL
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to process images: %w", err)
 	}
-	
+
 	return imageMap, nil
 }
 
@@ -126,7 +126,7 @@ func (u *ImageUploader) ProcessContentImages(contentDir string, issueNumber stri
 func (u *ImageUploader) CopyNewsletterAssets(contentMachineRoot string, issueNumber string) (avatarURL string, bannerURL string, err error) {
 	// Path to the content/images directory
 	imagesDir := filepath.Join(contentMachineRoot, "content", "images")
-	
+
 	// Copy avatar.jpg
 	avatarSource := filepath.Join(imagesDir, "avatar.jpg")
 	if _, err := os.Stat(avatarSource); err == nil {
@@ -135,7 +135,7 @@ func (u *ImageUploader) CopyNewsletterAssets(contentMachineRoot string, issueNum
 			log.Printf("WARNING: Failed to copy avatar.jpg: %v", err)
 		}
 	}
-	
+
 	// Copy newsletter_banner.png
 	bannerSource := filepath.Join(imagesDir, "newsletter_banner.png")
 	if _, err := os.Stat(bannerSource); err == nil {
@@ -144,7 +144,7 @@ func (u *ImageUploader) CopyNewsletterAssets(contentMachineRoot string, issueNum
 			log.Printf("WARNING: Failed to copy newsletter_banner.png: %v", err)
 		}
 	}
-	
+
 	return avatarURL, bannerURL, nil
 }
 
@@ -180,12 +180,12 @@ func (u *ImageUploader) DownloadImage(imageURL string, issueNumber string, filen
 	if err := os.MkdirAll(publicDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create public directory: %w", err)
 	}
-	
+
 	imagesDir := filepath.Join(publicDir, "images")
 	if err := os.MkdirAll(imagesDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create images directory: %w", err)
 	}
-	
+
 	newsletterDir := filepath.Join(imagesDir, "newsletter", issueNumber)
 	if err := os.MkdirAll(newsletterDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create newsletter directory: %w", err)
@@ -239,32 +239,32 @@ func (u *ImageUploader) DownloadImage(imageURL string, issueNumber string, filen
 	// Return the public URL
 	publicURL := fmt.Sprintf("%s/images/newsletter/%s/%s", u.BaseURL, issueNumber, filename)
 	log.Printf("INFO: Image downloaded: %s -> %s", imageURL, publicURL)
-	
+
 	return publicURL, nil
 }
 
 // ReplaceImageURLs replaces local image references with public URLs in HTML content
 func ReplaceImageURLs(htmlContent string, imageMap map[string]string) string {
 	result := htmlContent
-	
+
 	// Replace each local image path with its public URL
 	for localPath, publicURL := range imageMap {
 		// Handle different possible references to the image
 		// e.g., "./image.jpg", "image.jpg", "../image.jpg"
 		filename := filepath.Base(localPath)
-		
+
 		// Replace various forms of the local path
 		result = strings.ReplaceAll(result, fmt.Sprintf(`src="%s"`, localPath), fmt.Sprintf(`src="%s"`, publicURL))
 		result = strings.ReplaceAll(result, fmt.Sprintf(`src="./%s"`, localPath), fmt.Sprintf(`src="%s"`, publicURL))
 		result = strings.ReplaceAll(result, fmt.Sprintf(`src="../%s"`, localPath), fmt.Sprintf(`src="%s"`, publicURL))
 		result = strings.ReplaceAll(result, fmt.Sprintf(`src="%s"`, filename), fmt.Sprintf(`src="%s"`, publicURL))
-		
+
 		// Also handle markdown image syntax that might be in the content
 		result = strings.ReplaceAll(result, fmt.Sprintf(`](%s)`, localPath), fmt.Sprintf(`](%s)`, publicURL))
 		result = strings.ReplaceAll(result, fmt.Sprintf(`](./%s)`, localPath), fmt.Sprintf(`](%s)`, publicURL))
 		result = strings.ReplaceAll(result, fmt.Sprintf(`](../%s)`, localPath), fmt.Sprintf(`](%s)`, publicURL))
 		result = strings.ReplaceAll(result, fmt.Sprintf(`](%s)`, filename), fmt.Sprintf(`](%s)`, publicURL))
 	}
-	
+
 	return result
 }

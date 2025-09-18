@@ -50,11 +50,11 @@ func run(cmd *cobra.Command, args []string) {
 			// In dry-run mode, create a mock config for demonstration
 			log.Println("WARNING: Running in dry-run mode with mock configuration")
 			cfg = &config.Config{
-				KitAPIKey:          "mock-kit-v4-api-key",
-				AstroContentPath:   "/path/to/astro/content/blog",
-				BlogBaseURL:        "https://myblog.com",
-				BufferAccessToken:  "mock-buffer-token",
-				BufferProfileIDs:   []string{"TWITTER_PROFILE_ID", "LINKEDIN_PROFILE_ID", "BLUESKY_PROFILE_ID"},
+				KitAPIKey:         "mock-kit-v4-api-key",
+				AstroContentPath:  "/path/to/astro/content/blog",
+				BlogBaseURL:       "https://myblog.com",
+				BufferAccessToken: "mock-buffer-token",
+				BufferProfileIDs:  []string{"TWITTER_PROFILE_ID", "LINKEDIN_PROFILE_ID", "BLUESKY_PROFILE_ID"},
 				ProfilePlatformMap: map[string]models.Platform{
 					"TWITTER_PROFILE_ID":  models.PlatformTwitter,
 					"LINKEDIN_PROFILE_ID": models.PlatformLinkedIn,
