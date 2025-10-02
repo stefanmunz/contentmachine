@@ -22,7 +22,7 @@ func writeToBlog(blogConfig config.BlogConfig, blogName string, content *models.
 
 	// Generate folder name from title
 	folderName := generateFilenameFromTitle(content.Metadata.Title)
-	folderName = strings.TrimSuffix(folderName, ".md") // Remove .md extension for folder name
+	folderName = strings.TrimSuffix(folderName, ".mdx") // Remove .mdx extension for folder name
 
 	// Extract year from publish date or use current year
 	year := time.Now().Year()
@@ -35,9 +35,9 @@ func writeToBlog(blogConfig config.BlogConfig, blogName string, content *models.
 		}
 	}
 
-	// Create the full path: content/blog/2025/post-folder/index.md
+	// Create the full path: content/blog/2025/post-folder/index.mdx
 	postDir := filepath.Join(blogConfig.ContentPath, fmt.Sprintf("%d", year), folderName)
-	destPath := filepath.Join(postDir, "index.md")
+	destPath := filepath.Join(postDir, "index.mdx")
 
 	// Check for banner image (try both .jpg and .png)
 	sourceDir := filepath.Dir(content.OriginalPath)
@@ -166,28 +166,23 @@ func HandleAstroPost(cfg *config.Config, content *models.Content, dryRun bool) e
 	return nil
 }
 
-// processImagePathsForBlog converts image paths to relative paths for blog posts
+// processImagePathsForBlog converts image paths to Astro Image components for blog posts
 func processImagePathsForBlog(content string) string {
+	// Track unique images for imports
+	imageImports := make(map[string]string) // filename -> importName
+
 	// Use regex to find all markdown image references
 	re := regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
 
-	result := re.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract the alt text and path from the match
+	// First pass: collect all images and generate import names
+	re.ReplaceAllStringFunc(content, func(match string) string {
 		submatches := re.FindStringSubmatch(match)
 		if len(submatches) < 3 {
 			return match
 		}
 
-		altText := submatches[1]
 		imagePath := submatches[2]
-
-		// Extract just the filename from the path
 		filename := filepath.Base(imagePath)
-
-		// Skip if it's already a relative path starting with ./
-		if strings.HasPrefix(imagePath, "./") {
-			return match
-		}
 
 		// Check if it's an image file based on extension
 		ext := strings.ToLower(filepath.Ext(filename))
@@ -200,13 +195,56 @@ func processImagePathsForBlog(content string) string {
 			}
 		}
 
-		if !isImage {
+		if isImage && imageImports[filename] == "" {
+			// Generate import name from filename (e.g., "image.png" -> "imageImg")
+			baseName := strings.TrimSuffix(filename, filepath.Ext(filename))
+			// Clean the base name to be a valid JS identifier
+			cleanName := regexp.MustCompile(`[^a-zA-Z0-9]+`).ReplaceAllString(baseName, "")
+			importName := cleanName + "Img"
+			imageImports[filename] = importName
+		}
+
+		return match
+	})
+
+	// Build imports section
+	var importsBuilder strings.Builder
+	if len(imageImports) > 0 {
+		// Add Image import if not already present
+		if !strings.Contains(content, "import { Image } from \"astro:assets\"") {
+			importsBuilder.WriteString("import { Image } from \"astro:assets\";\n")
+		}
+
+		// Add individual image imports
+		for filename, importName := range imageImports {
+			importsBuilder.WriteString(fmt.Sprintf("import %s from \"./%s\";\n", importName, filename))
+		}
+		importsBuilder.WriteString("\n")
+	}
+
+	// Second pass: replace markdown images with Image components
+	result := re.ReplaceAllStringFunc(content, func(match string) string {
+		submatches := re.FindStringSubmatch(match)
+		if len(submatches) < 3 {
 			return match
 		}
 
-		// Return with relative path
-		return fmt.Sprintf("![%s](./%s)", altText, filename)
+		altText := submatches[1]
+		imagePath := submatches[2]
+		filename := filepath.Base(imagePath)
+
+		// Check if we have an import for this image
+		if importName, exists := imageImports[filename]; exists {
+			return fmt.Sprintf("<Image src={%s} alt=\"%s\" widths={[400, 800, 1200]} sizes=\"(max-width: 800px) 100vw, 800px\" />", importName, altText)
+		}
+
+		return match
 	})
+
+	// Prepend imports to the content
+	if len(imageImports) > 0 {
+		result = importsBuilder.String() + result
+	}
 
 	return result
 }
@@ -236,7 +274,7 @@ func buildBlogContentWithProcessedContent(content *models.Content, processedThou
 
 	// Generate postSlug from title
 	postSlug := generateFilenameFromTitle(content.Metadata.Title)
-	postSlug = strings.TrimSuffix(postSlug, ".md")
+	postSlug = strings.TrimSuffix(postSlug, ".mdx")
 	builder.WriteString(fmt.Sprintf("postSlug: %s\n", postSlug))
 
 	// Add featured and draft fields (for OnTree compatibility)
@@ -263,9 +301,14 @@ func buildBlogContentWithProcessedContent(content *models.Content, processedThou
 
 	builder.WriteString("---\n\n")
 
-	// Add banner image if it exists
+	// Add Astro Image import for banner if it exists
 	if bannerFileName != "" {
-		builder.WriteString(fmt.Sprintf("![%s](./%s)\n\n", content.Metadata.Title, bannerFileName))
+		builder.WriteString("import { Image } from \"astro:assets\";\n")
+		// Create import name from banner filename (e.g., banner.png -> bannerImg)
+		importName := strings.TrimSuffix(bannerFileName, filepath.Ext(bannerFileName)) + "Img"
+		builder.WriteString(fmt.Sprintf("import %s from \"./%s\";\n\n", importName, bannerFileName))
+		// Use widths prop for responsive images - Astro will generate multiple sizes
+		builder.WriteString(fmt.Sprintf("<Image\n  src={%s}\n  alt=\"%s\"\n  widths={[400, 800, 1200]}\n  sizes=\"(max-width: 800px) 100vw, 800px\"\n/>\n\n", importName, content.Metadata.Title))
 	}
 
 	// Add the processed content with relative paths
@@ -291,8 +334,8 @@ func generateFilenameFromTitle(title string) string {
 	filename = strings.TrimSpace(filename)
 	filename = strings.ReplaceAll(filename, " ", "-")
 
-	// Add .md extension
-	return filename + ".md"
+	// Add .mdx extension
+	return filename + ".mdx"
 }
 
 // copyFile copies a file from source to destination
