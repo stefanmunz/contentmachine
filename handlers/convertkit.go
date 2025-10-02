@@ -12,6 +12,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/vanng822/go-premailer/premailer"
+	"github.com/yuin/goldmark"
 )
 
 // Kit v4 API request structures
@@ -467,23 +470,9 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	// Process the thought piece to use absolute URLs for images
 	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID)
 
-	// Thought piece
-	paragraphs := strings.Split(processedThoughtPiece, "\n\n")
-	for _, para := range paragraphs {
-		if strings.TrimSpace(para) != "" {
-			// Check if this paragraph contains a markdown image
-			if strings.Contains(para, "![") {
-				// Convert markdown images to HTML
-				para = convertMarkdownImagesToHTML(para)
-				// Add the image without wrapping in a paragraph tag
-				builder.WriteString(para)
-			} else {
-				// Regular paragraph with potential links
-				para = convertMarkdownLinksToHTML(para)
-				builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">%s</p>`, para))
-			}
-		}
-	}
+	// Convert thought piece from markdown to HTML using goldmark
+	thoughtPieceHTML := convertMarkdownToBasicHTML(processedThoughtPiece)
+	builder.WriteString(thoughtPieceHTML)
 
 	// Links section
 	builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What I Learned This Week</h2>`)
@@ -577,87 +566,95 @@ func formatNewsletterContentHTML(content *models.Content) string {
 }
 
 func convertMarkdownToBasicHTML(markdown string) string {
-	var html strings.Builder
-	lines := strings.Split(markdown, "\n")
-	inParagraph := false
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Handle headers
-		if strings.HasPrefix(trimmed, "### ") {
-			if inParagraph {
-				html.WriteString("</p>\n")
-				inParagraph = false
-			}
-			html.WriteString(fmt.Sprintf("<h3>%s</h3>\n", strings.TrimPrefix(trimmed, "### ")))
-		} else if strings.HasPrefix(trimmed, "## ") {
-			if inParagraph {
-				html.WriteString("</p>\n")
-				inParagraph = false
-			}
-			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n", strings.TrimPrefix(trimmed, "## ")))
-		} else if strings.HasPrefix(trimmed, "# ") {
-			if inParagraph {
-				html.WriteString("</p>\n")
-				inParagraph = false
-			}
-			html.WriteString(fmt.Sprintf("<h1>%s</h1>\n", strings.TrimPrefix(trimmed, "# ")))
-		} else if trimmed == "---" {
-			if inParagraph {
-				html.WriteString("</p>\n")
-				inParagraph = false
-			}
-			html.WriteString("<hr>\n")
-		} else if trimmed == "" {
-			// Empty line - close paragraph if open
-			if inParagraph {
-				html.WriteString("</p>\n")
-				inParagraph = false
-			}
-		} else {
-			// Regular text - convert markdown elements
-			processed := trimmed
-
-			// Convert bold
-			processed = strings.ReplaceAll(processed, "**", "")
-
-			// Convert italic
-			if strings.HasPrefix(processed, "*") && strings.HasSuffix(processed, "*") && len(processed) > 2 {
-				processed = fmt.Sprintf("<em>%s</em>", processed[1:len(processed)-1])
-			}
-
-			// Convert markdown links to HTML
-			processed = convertMarkdownLinksToHTML(processed)
-
-			// Convert markdown images to HTML
-			if strings.HasPrefix(processed, "![") {
-				start := strings.Index(processed, "](")
-				end := strings.LastIndex(processed, ")")
-				if start > 0 && end > start {
-					alt := processed[2:start]
-					src := processed[start+2 : end]
-					processed = fmt.Sprintf(`<img src="%s" alt="%s" style="max-width: 100%%;">`, src, alt)
-				}
-			}
-
-			// Start or continue paragraph
-			if !inParagraph {
-				html.WriteString("<p>")
-				inParagraph = true
-			} else if i > 0 && lines[i-1] != "" {
-				html.WriteString(" ")
-			}
-			html.WriteString(processed)
-		}
+	// Step 1: Convert markdown to HTML with goldmark
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(markdown), &buf); err != nil {
+		log.Printf("ERROR: Failed to convert markdown: %v", err)
+		return markdown
 	}
 
-	// Close any open paragraph
-	if inParagraph {
-		html.WriteString("</p>\n")
+	// Step 2: Wrap in full HTML document with CSS styles
+	fullHTML := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+	p {
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 18px;
+		color: #353535;
+		font-weight: 400;
+		line-height: 28px;
+		margin: 0 0 16px 0;
+	}
+	ul {
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 18px;
+		color: #353535;
+		line-height: 28px;
+		margin: 16px 0;
+		padding-left: 24px;
+	}
+	li {
+		margin-bottom: 8px;
+	}
+	h2 {
+		font-family: 'IBM Plex Mono', monospace;
+		font-style: italic;
+		font-size: 24px;
+		color: #11363F;
+		font-weight: 400;
+		line-height: 1.5;
+		margin-top: 32px;
+	}
+	h3 {
+		font-family: 'IBM Plex Mono', monospace;
+		font-style: italic;
+		font-size: 20px;
+		color: #11363F;
+		font-weight: 400;
+		line-height: 1.5;
+		margin-top: 24px;
+	}
+	a {
+		color: #0066cc;
+		text-decoration: underline;
+	}
+	img {
+		width: 100%%;
+		max-width: 600px;
+		height: auto;
+		display: block;
+		margin: 24px auto;
+	}
+</style>
+</head>
+<body>%s</body>
+</html>`, buf.String())
+
+	// Step 3: Use premailer to inline CSS
+	prem, err := premailer.NewPremailerFromString(fullHTML, premailer.NewOptions())
+	if err != nil {
+		log.Printf("ERROR: Failed to create premailer: %v", err)
+		return buf.String()
 	}
 
-	return html.String()
+	inlinedHTML, err := prem.Transform()
+	if err != nil {
+		log.Printf("ERROR: Failed to transform with premailer: %v", err)
+		return buf.String()
+	}
+
+	// Step 4: Extract just the body content (strip <html><head><body> wrapper)
+	bodyStart := strings.Index(inlinedHTML, "<body>")
+	bodyEnd := strings.Index(inlinedHTML, "</body>")
+	if bodyStart == -1 || bodyEnd == -1 {
+		log.Printf("WARNING: Could not extract body content, returning full HTML")
+		return inlinedHTML
+	}
+
+	bodyContent := inlinedHTML[bodyStart+6 : bodyEnd]
+	return bodyContent
 }
 
 // Helper function to convert markdown images to HTML

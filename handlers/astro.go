@@ -122,7 +122,13 @@ func writeToBlog(blogConfig config.BlogConfig, blogName string, content *models.
 	}
 
 	// Process the thought piece to use relative image paths for the blog
-	processedThoughtPiece := processImagePathsForBlog(content.ThoughtPiece)
+	// First, remove the banner image from the thought piece to avoid duplication
+	thoughtPieceWithoutBanner := content.ThoughtPiece
+	// Remove the first image (banner) from the thought piece
+	bannerImagePattern := regexp.MustCompile(`(?m)^!\[.*?\]\(.*?banner\.png\)\s*\n*`)
+	thoughtPieceWithoutBanner = bannerImagePattern.ReplaceAllString(thoughtPieceWithoutBanner, "")
+
+	processedThoughtPiece := processImagePathsForBlog(thoughtPieceWithoutBanner)
 
 	blogContent := buildBlogContentWithProcessedContent(content, processedThoughtPiece, bannerFileName, author)
 
