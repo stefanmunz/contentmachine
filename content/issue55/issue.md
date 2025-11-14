@@ -28,9 +28,7 @@ Now, the finale. After weeks of hardening this approach, I've distilled it into 
 
 The old way: run the script, watch it fail, open the file, find line 52, guess a fix, save, run again. High-friction context switching.
 
-The new way: I run the script, it fails on an edge case, and I say: "Claude, that error on line 52—the script needs to back up existing directories instead of failing. Fix it."
-
-Claude has the full context: the command, the code, and the failed output. It updates the script immediately. The script hardens with each real-world failure. This tight feedback loop is the fastest way to build robust automation. TreeOS will be open source. Users can run the install script and contribute a pull request if they encounter an edge case. Can't wait to see this in real life.
+The new way: I let Claude execute the script, it fails on an edge case, and it comes back to me with what happened and multiple options how to fix it. Claude has the full context: the command, the code, and the failed output. It updates the script immediately. The script hardens with each real-world failure. This tight feedback loop is the fastest way to build robust automation. TreeOS will be open source. Users can run the install script and contribute a pull request if they encounter an edge case. Can't wait to see this in real life.
 
 ### 2. Soft Front Door + Hard Engine
 
@@ -40,7 +38,7 @@ Every installer consists of two side-by-side files:
 
 - Hard Engine (`.sh`): treeos-setup-production-noconfirm.sh
 
-The markdown contains the Claude Code prompt, the conversational layer. It explains what's about to happen, checks prerequisites, and asks for confirmation. It's flexible and human-friendly.
+The treeos prefix is to separate my custom commands from others. The markdown contains the Claude Code prompt, the conversational layer. It explains what's about to happen, checks prerequisites, and asks for confirmation. It's flexible and human-friendly.
 
 The shell script is the deterministic engine. It takes inputs and executes precise commands. No ambiguity, no improvisation, 100% repeatable.
 
@@ -48,9 +46,7 @@ This separation is crucial. Claude can safely modify the conversation in the fro
 
 ### 3. The Graceful Handoff
 
-My scripts run on machines where I have sudo and on servers where Claude Code doesn't. Both need to work seamlessly.
-
-The pattern: check if sudo is available without a password prompt.
+Depending on the machine and trust level of the user, sometimes Claude Code has access to sudo, sometimes not. The pattern: check if sudo is available without a password prompt.
 
 ```bash
 
@@ -80,7 +76,7 @@ Claude does 95% of the work, then asks me to handle the one step it can't. Perfe
 
 ## The Real-World Result
 
-These three patterns produced my TreeOS production installer. It's now 600+ lines and handles:
+These three patterns and a lot of iterations produced my TreeOS production installer. It's now 600+ lines and handles:
 
 - OS detection (Linux/macOS) and architecture
 
@@ -88,7 +84,7 @@ These three patterns produced my TreeOS production installer. It's now 600+ line
 
 - Creating system users with proper permissions
 
-- Optional AMD ROCm installation if a GPU is detected
+- Optional AMD ROCm installation if a fitting GPU is detected
 
 - Service setup (systemd/launchd) and verification
 
@@ -116,8 +112,24 @@ With the explosion of AI tools, setup complexity is a real barrier. These patter
 
 ### Link Title Here
 
-- **URL:** https://example.com
-- **MyTake:** Your take on this link
+- **URL:** https://www.philschmid.de/gemini-with-memory
+- **MyTake:** Interesting walktthrough on how to implement memory for LLMs. I am still searching for a good intro how these memories work and why.
+- **Keyword:** link
+
+---
+
+###
+
+- **URL:** https://www.stateof.ai/2025-report-launch
+- **MyTake:** A very different perspective on the same AI world that I am investigating. Interesting to get more insights into the financial aspects of it all.
+- **Keyword:** link
+
+---
+
+###
+
+- **URL:** https://designobserver.com/the-compound-interest-of-design-what-not-to-build/
+- **MyTake:** This sounds like easy advice, but I find it really hard to follow. It's just so easy to allow new facts to change your thinking. Sometimes it's good and sometimes it's bad.
 - **Keyword:** link
 
 <!--PRINT_SEPARATOR-->
@@ -126,11 +138,11 @@ With the explosion of AI tools, setup complexity is a real barrier. These patter
 
 ### Print Model Title
 
-![Print Model Title](./image.jpg)
+![Print Model Title](https://makerworld.bblmw.com/makerworld/model/USc2cfd0c04ccc1e/design/2025-05-16_9c68b287614958.jpg)
 
-Description of what makes this print interesting.
+They are not mentioning that it's only for electric tea lights and not for conventional ones...
 
-[visit model page](https://makerworld.com/en/models/example)
+[visit model page](https://makerworld.com/en/models/1132818-hot-air-balloon-tea-light-candle#profileId-1133342)
 
 <!--FOOTER_SEPARATOR-->
 
