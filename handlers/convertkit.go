@@ -448,8 +448,8 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	builder.WriteString(`<head>`)
 	builder.WriteString(`<meta charset="utf-8">`)
 	builder.WriteString(`<style>`)
-	builder.WriteString(`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital@1&display=swap');`)
-	builder.WriteString(`h1, h2, h3 { font-family: 'IBM Plex Mono', monospace !important; font-style: italic !important; }`)
+	builder.WriteString(`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&display=swap');`)
+	builder.WriteString(`h1, h2, h3 { font-family: 'IBM Plex Mono', monospace !important; font-weight: 600 !important; }`)
 	builder.WriteString(`.container { max-width: 600px; margin: 0 auto; padding: 20px; }`)
 	builder.WriteString(`</style>`)
 	builder.WriteString(`</head>`)
@@ -463,7 +463,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 
 	// Header without green border
 	builder.WriteString(`<div style="margin: 24px 0;">`)
-	builder.WriteString(fmt.Sprintf(`<h1 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 36px; color: #12363f; font-weight: 400; line-height: 1.5; margin: 0;">%s</h1>`, content.Metadata.Title))
+	builder.WriteString(fmt.Sprintf(`<h1 style="font-family: 'IBM Plex Mono', monospace; font-size: 36px; color: #12363f; font-weight: 600; line-height: 1.5; margin: 0;">%s</h1>`, content.Metadata.Title))
 	builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #4e585a; font-weight: 400; line-height: 1.5; margin-top: 8px;">The Liquid Engineer – Issue No. %s</p>`, strings.TrimPrefix(content.Metadata.ContentID, "issue")))
 	builder.WriteString(`</div>`)
 
@@ -475,7 +475,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	builder.WriteString(thoughtPieceHTML)
 
 	// Links section
-	builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What I Learned This Week</h2>`)
+	builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-size: 36px; color: #11363F; font-weight: 600; line-height: 1.5; margin-top: 32px;">What I Learned This Week</h2>`)
 
 	for _, link := range content.Links {
 		linkText := "LINK"
@@ -487,7 +487,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 
 	// Print items section if present
 	if len(content.PrintItems) > 0 {
-		builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.5; margin-top: 32px;">What to Print This Week</h2>`)
+		builder.WriteString(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-size: 36px; color: #11363F; font-weight: 600; line-height: 1.5; margin-top: 32px;">What to Print This Week</h2>`)
 		builder.WriteString(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 18px; color: #353535; font-weight: 400; line-height: 1.5;">This newsletter started out on 3D printing. If you haven't had any contact with it, you should, it's great! Here's the most interesting and fun projects I saw last week.</p>`)
 
 		for _, item := range content.PrintItems {
@@ -508,7 +508,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 
 			// Content column
 			builder.WriteString(`<td style="vertical-align: top;">`)
-			builder.WriteString(fmt.Sprintf(`<h3 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 24px; color: #11363F; font-weight: 400; line-height: 1.3; margin: 0 0 8px 0;">%s</h3>`, item.Title))
+			builder.WriteString(fmt.Sprintf(`<h3 style="font-family: 'IBM Plex Mono', monospace; font-size: 24px; color: #11363F; font-weight: 600; line-height: 1.3; margin: 0 0 8px 0;">%s</h3>`, item.Title))
 
 			if item.Description != "" {
 				builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; color: #353535; font-weight: 400; line-height: 1.5; margin: 0 0 12px 0;">%s</p>`, item.Description))
@@ -538,7 +538,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "##") {
 				title := strings.TrimSpace(strings.TrimPrefix(line, "##"))
-				builder.WriteString(fmt.Sprintf(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-style: italic; font-size: 32px; color: #000000; font-weight: 500; line-height: 1.5; margin: 0 0 12px 0;">%s</h2>`, title))
+				builder.WriteString(fmt.Sprintf(`<h2 style="font-family: 'IBM Plex Mono', monospace; font-size: 32px; color: #000000; font-weight: 600; line-height: 1.5; margin: 0 0 12px 0;">%s</h2>`, title))
 			} else if line != "" {
 				line = convertMarkdownLinksToHTML(line)
 				builder.WriteString(fmt.Sprintf(`<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; color: #4d4d4d; font-weight: 400; line-height: 1.5; margin: 8px 0;">%s</p>`, line))
@@ -600,19 +600,17 @@ func convertMarkdownToBasicHTML(markdown string) string {
 	}
 	h2 {
 		font-family: 'IBM Plex Mono', monospace;
-		font-style: italic;
 		font-size: 24px;
 		color: #11363F;
-		font-weight: 400;
+		font-weight: 600;
 		line-height: 1.5;
 		margin-top: 32px;
 	}
 	h3 {
 		font-family: 'IBM Plex Mono', monospace;
-		font-style: italic;
 		font-size: 20px;
 		color: #11363F;
-		font-weight: 400;
+		font-weight: 600;
 		line-height: 1.5;
 		margin-top: 24px;
 	}
