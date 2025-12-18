@@ -89,7 +89,7 @@ func CreateConvertKitDraft(cfg *config.Config, content *models.Content, dryRun b
 	}
 
 	// Generate rich HTML with inline styles
-	richHTML := formatNewsletterContentHTML(content)
+	richHTML := formatNewsletterContentHTML(content, cfg.PersonalBlog.BaseURL)
 
 	// Upload images to both blogs if configured
 	richHTML = uploadAndReplaceImagesMultiBlogs(cfg, content, richHTML, dryRun)
@@ -329,9 +329,10 @@ func uploadImagesToSingleBlog(blogConfig config.BlogConfig, blogName string, con
 }
 
 // processImagePathsForNewsletter converts image paths to absolute URLs for the newsletter
-func processImagePathsForNewsletter(thoughtPiece string, contentID string) string {
+func processImagePathsForNewsletter(thoughtPiece string, contentID string, baseURL string) string {
 	// Extract issue number from contentID (e.g., "issue50" -> "50")
 	issueNumber := strings.TrimPrefix(contentID, "issue")
+	baseURL = strings.TrimRight(baseURL, "/")
 
 	// Use regex to find all markdown image references
 	re := regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
@@ -369,8 +370,8 @@ func processImagePathsForNewsletter(thoughtPiece string, contentID string) strin
 			return match
 		}
 
-		// Build the absolute URL for www.stefanmunz.com
-		absoluteURL := fmt.Sprintf("https://www.stefanmunz.com/images/newsletter/%s/%s", issueNumber, filename)
+		// Build the absolute URL for the configured image host
+		absoluteURL := fmt.Sprintf("%s/images/newsletter/%s/%s", baseURL, issueNumber, filename)
 
 		// Return with absolute URL
 		return fmt.Sprintf("![%s](%s)", altText, absoluteURL)
@@ -379,7 +380,7 @@ func processImagePathsForNewsletter(thoughtPiece string, contentID string) strin
 	return result
 }
 
-func formatNewsletterContentMarkdown(content *models.Content) string {
+func formatNewsletterContentMarkdown(content *models.Content, baseURL string) string {
 	var builder strings.Builder
 
 	// Add header with title and issue number
@@ -388,7 +389,7 @@ func formatNewsletterContentMarkdown(content *models.Content) string {
 	builder.WriteString("---\n\n")
 
 	// Process the thought piece to use absolute URLs for images
-	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID)
+	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID, baseURL)
 
 	// Add the processed thought piece
 	builder.WriteString(processedThoughtPiece)
@@ -439,7 +440,7 @@ func formatNewsletterContentMarkdown(content *models.Content) string {
 	return builder.String()
 }
 
-func formatNewsletterContentHTML(content *models.Content) string {
+func formatNewsletterContentHTML(content *models.Content, baseURL string) string {
 	var builder strings.Builder
 
 	// Start with complete HTML document structure with max-width container
@@ -468,7 +469,7 @@ func formatNewsletterContentHTML(content *models.Content) string {
 	builder.WriteString(`</div>`)
 
 	// Process the thought piece to use absolute URLs for images
-	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID)
+	processedThoughtPiece := processImagePathsForNewsletter(content.ThoughtPiece, content.Metadata.ContentID, baseURL)
 
 	// Convert thought piece from markdown to HTML using goldmark
 	thoughtPieceHTML := convertMarkdownToBasicHTML(processedThoughtPiece)

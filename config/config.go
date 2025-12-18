@@ -4,6 +4,7 @@ import (
 	"distribute/models"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -26,6 +27,39 @@ type Config struct {
 	BlogRepoPath     string
 }
 
+func normalizeBaseURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	raw = strings.TrimRight(raw, "/")
+
+	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
+		return raw
+	}
+
+	return "https://" + raw
+}
+
+func expandHomeDir(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil || home == "" {
+			return path
+		}
+		if path == "~" {
+			return home
+		}
+		return filepath.Join(home, strings.TrimPrefix(path, "~/"))
+	}
+
+	return path
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{}
 
@@ -38,6 +72,7 @@ func Load() (*Config, error) {
 		// Fall back to legacy env var
 		cfg.PersonalBlog.ContentPath = os.Getenv("ASTRO_CONTENT_PATH")
 	}
+	cfg.PersonalBlog.ContentPath = expandHomeDir(cfg.PersonalBlog.ContentPath)
 	if cfg.PersonalBlog.ContentPath == "" {
 		return nil, fmt.Errorf("PERSONAL_BLOG_CONTENT_PATH or ASTRO_CONTENT_PATH environment variable is required")
 	}
@@ -47,6 +82,7 @@ func Load() (*Config, error) {
 		// Fall back to legacy env var
 		cfg.PersonalBlog.BaseURL = os.Getenv("BLOG_BASE_URL")
 	}
+	cfg.PersonalBlog.BaseURL = normalizeBaseURL(cfg.PersonalBlog.BaseURL)
 	if cfg.PersonalBlog.BaseURL == "" {
 		return nil, fmt.Errorf("PERSONAL_BLOG_BASE_URL or BLOG_BASE_URL environment variable is required")
 	}
@@ -56,11 +92,15 @@ func Load() (*Config, error) {
 		// Fall back to legacy env var
 		cfg.PersonalBlog.RepoPath = os.Getenv("BLOG_REPO_PATH")
 	}
+	cfg.PersonalBlog.RepoPath = expandHomeDir(cfg.PersonalBlog.RepoPath)
 
 	// OnTree blog configuration
 	cfg.OnTreeBlog.ContentPath = os.Getenv("ONTREE_BLOG_CONTENT_PATH")
 	cfg.OnTreeBlog.RepoPath = os.Getenv("ONTREE_BLOG_REPO_PATH")
 	cfg.OnTreeBlog.BaseURL = os.Getenv("ONTREE_BLOG_BASE_URL")
+	cfg.OnTreeBlog.ContentPath = expandHomeDir(cfg.OnTreeBlog.ContentPath)
+	cfg.OnTreeBlog.RepoPath = expandHomeDir(cfg.OnTreeBlog.RepoPath)
+	cfg.OnTreeBlog.BaseURL = normalizeBaseURL(cfg.OnTreeBlog.BaseURL)
 
 	// Set legacy fields for backward compatibility
 	cfg.AstroContentPath = cfg.PersonalBlog.ContentPath

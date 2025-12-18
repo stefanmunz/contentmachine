@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"distribute/config"
+	"distribute/internal/assets"
 	"distribute/models"
 	"fmt"
 	"io"
@@ -41,17 +42,9 @@ func writeToBlog(blogConfig config.BlogConfig, blogName string, content *models.
 
 	// Check for banner image (try both .jpg and .png)
 	sourceDir := filepath.Dir(content.OriginalPath)
-	bannerSourcePath := ""
-	bannerFileName := ""
-
-	// Check if banner.jpg exists
-	if _, err := os.Stat(filepath.Join(sourceDir, "banner.jpg")); err == nil {
-		bannerSourcePath = filepath.Join(sourceDir, "banner.jpg")
-		bannerFileName = "banner.jpg"
-	} else if _, err := os.Stat(filepath.Join(sourceDir, "banner.png")); err == nil {
-		// Check if banner.png exists
-		bannerSourcePath = filepath.Join(sourceDir, "banner.png")
-		bannerFileName = "banner.png"
+	bannerSourcePath, bannerFileName, err := assets.FindBannerFile(sourceDir)
+	if err != nil {
+		return fmt.Errorf("failed to find banner image: %w", err)
 	}
 
 	// Find all image files in the source directory (except banner.jpg/banner.png which is handled separately)
@@ -125,7 +118,7 @@ func writeToBlog(blogConfig config.BlogConfig, blogName string, content *models.
 	// First, remove the banner image from the thought piece to avoid duplication
 	thoughtPieceWithoutBanner := content.ThoughtPiece
 	// Remove the first image (banner) from the thought piece
-	bannerImagePattern := regexp.MustCompile(`(?m)^!\[.*?\]\(.*?banner\.png\)\s*\n*`)
+	bannerImagePattern := regexp.MustCompile(`(?m)^!\[.*?\]\(.*?banner\.(png|jpg|jpeg)\)\s*\n*`)
 	thoughtPieceWithoutBanner = bannerImagePattern.ReplaceAllString(thoughtPieceWithoutBanner, "")
 
 	processedThoughtPiece := processImagePathsForBlog(thoughtPieceWithoutBanner)
